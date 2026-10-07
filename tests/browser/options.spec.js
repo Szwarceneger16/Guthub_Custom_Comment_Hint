@@ -78,12 +78,13 @@ test('a matching concurrent save leaves no conflict and preserves edits made whi
 
 test('history suggestions include old visits and more than 100 results while preserving the draft',async({page})=>{
   await openOptions(page);await page.getByLabel('Button label',{exact:true}).fill('Unsaved 🧪');
-  await page.evaluate(()=>{window.__mock.historyItems=[...Array.from({length:128},(_,i)=>({url:`https://github.com/Visitors/repo${i}/tree/main`,title:'Not persisted',lastVisitTime:1})),{url:'https://github.com/Legacy/archive/blob/main/file',lastVisitTime:1},{url:'https://github.com/ALICE/REPO/issues/9'},{url:'https://github.com/visitors/REPO0/pull/1'},{url:'https://evil.invalid/test',title:'https://github.com/'},{url:'https://github.com/settings/profile'}];});
+  await page.evaluate(()=>{window.__mock.historyItems=[...Array.from({length:128},(_,i)=>({url:`https://github.com/Visitors/repo${i}/tree/main`,title:'Not persisted',lastVisitTime:1})),{url:'https://github.com/Legacy/archive/blob/main/file',lastVisitTime:1},{url:'https://github.com/ALICE/REPO/issues/9'},{url:'https://github.com/visitors/REPO0/pull/1'},{url:'https://evil.invalid/test',title:'https://github.com/'},{url:'https://github.com/settings/profile'},{url:'https://github.com/stars/octocat'},{url:'https://github.com/STARS/octocat/lists/review-tools'},{url:'https://github.com/enterprises/demo-enterprise'}];});
   await page.getByRole('tab',{name:'Assignments',exact:true}).click();
   await page.getByRole('button',{name:'Import GitHub history',exact:true}).click();
   await expect(page.locator('#repository-status')).toContainText('Imported 130 unique repositories');
   await expect(page.locator('#known-repositories option')).toHaveCount(131);
   await expect(page.locator('#known-repositories option[value="Legacy/archive"]')).toHaveCount(1);
+  await expect(page.locator('#known-repositories option[value^="stars/" i], #known-repositories option[value^="enterprises/" i]')).toHaveCount(0);
   expect(await page.evaluate(()=>window.__mock.permissionRequests)).toEqual([{permissions:['history']}]);
   expect(await page.evaluate(()=>window.__mock.historyQueries)).toEqual([{text:'https://github.com/',startTime:0,maxResults:2147483647}]);
   expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(config());
@@ -194,6 +195,21 @@ test('import accepts UTF-8 BOM and Unicode; invalid encoding preserves draft; ex
   await page.getByLabel('Import JSON',{exact:true}).setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from([0xc3,0x28])});await expect(page.locator('#status')).toContainText('Invalid UTF-8');await expect(page.locator('#json-editor')).toHaveValue(before);
   const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Export JSON',exact:true}).click();const download=await downloaded;
   const stream=await download.createReadStream();const chunks=[];for await(const chunk of stream)chunks.push(chunk);const bytes=Buffer.concat(chunks);expect(bytes.subarray(0,3).equals(Buffer.from([0xef,0xbb,0xbf]))).toBe(false);expect(JSON.parse(bytes.toString('utf8'))).toEqual(next);
+});
+test('imported Windows line endings survive form views, unrelated edits, Save and export',async({page})=>{
+  await openOptions(page);await page.getByRole('tab',{name:'JSON',exact:true}).click();
+  const next=config();next.layouts.ci[0].label='Łódź\r\nReview';next.layouts.ci[0].value='First\r\n🧪\rThird\n';
+  await page.getByLabel('Import JSON',{exact:true}).setInputFiles({name:'windows.json',mimeType:'application/json',buffer:Buffer.from('\uFEFF'+JSON.stringify(next),'utf8')});
+  await expect(page.locator('#status')).toContainText('Imported into the draft');
+  await page.getByRole('tab',{name:'Layouts',exact:true}).click();await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('First\n🧪\nThird\n');
+  await page.getByRole('combobox',{name:'Insertion mode',exact:true}).selectOption('append');next.layouts.ci[0].mode='append';
+  await page.getByRole('tab',{name:'Assignments',exact:true}).click();await page.getByRole('tab',{name:'JSON',exact:true}).click();
+  expect(JSON.parse(await page.locator('#json-editor').inputValue())).toEqual(next);
+  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.locator('#status')).toHaveText('Configuration saved.');
+  expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(next);
+  const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Export JSON',exact:true}).click();
+  const stream=await (await downloaded).createReadStream();const chunks=[];for await (const chunk of stream) chunks.push(chunk);
+  expect(JSON.parse(Buffer.concat(chunks).toString('utf8'))).toEqual(next);
 });
 test('unsupported stored configuration stays intact and is recoverable through JSON',async({page})=>{
   await openOptions(page,{version:999});await expect(page.locator('#tab-json')).toHaveAttribute('aria-selected','true');await expect(page.locator('#status')).toContainText('has not been overwritten');expect(await page.evaluate(()=>window.__mock.writes)).toBe(0);

@@ -30,7 +30,7 @@ mise exec -- pnpm check:integrity
 mise exec -- pnpm audit:privacy --history --packages
 ```
 
-The current run passed 25 logic/privacy tests, 45 Firefox fixture tests and six
+The current run passed 29 logic/privacy tests, 49 Firefox fixture tests and six
 intercepted signing checks. Source reproduction matched all 15 runtime files,
 and lint returned zero errors/notices with the
 known Desktop-only warning. Audit scope is summarized in REPOSITORY_PRIVACY.md.
@@ -50,6 +50,22 @@ from visits/history/catalog suggestions, concurrent saves (including removed or
 invalid storage, late notifications, stale reads and verification failures), and
 retained generic editors across conversation changes. Real mouse/keyboard
 activation and conversation-specific action recovery remain covered.
+
+Further regressions cover account Stars URLs (including lists and case variants)
+through URL discovery, background messages, history imports and existing catalogs;
+a real repository named `stars` remains discoverable. PNGs now receive all general
+privacy patterns in addition to metadata checks. Tests cover trailers, metadata
+and other chunk content, truncated/oversized chunks, and an isolated audit run
+against a worktree file, an unreachable Git blob and a ZIP entry. Audit reports
+and console output contain finding types rather than the synthetic matched value.
+Related checks also exposed and fixed quoted JSON credential keys being missed
+by the literal-secret rule; quoted and unquoted assignments are covered.
+
+Firefox tests cover CRLF, lone CR and mixed line endings in replace/append,
+empty/nonempty Unicode drafts, end-of-text cursor placement, selection restoration,
+consecutive insertions and silent page edits. Windows-authored JSON survives BOM
+import, view changes, unrelated form edits, Save and export with its original
+strings. Only the textarea's native LF representation is used for Undo comparison.
 
 The main-comment fixture models GitHub's required textarea, disabled submit
 control and validity listener installed on focus. Its behavior follows the

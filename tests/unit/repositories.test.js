@@ -28,6 +28,25 @@ test('enterprise-account routes are excluded from visits, history and existing c
   assert.deepEqual(await loadCatalog(api), [{owner:'Alice',repo:'project'}]);
 });
 
+test('account stars routes never become repositories through discovery, history or an old catalog', async () => {
+  const urls = ['stars', 'STARS'].flatMap(route => ['', '/lists/review-tools'].map(path =>
+    `https://github.com/${route}/octocat${path}?tab=stars#list`));
+  for (const url of urls) assert.equal(repositoryFromURL(url), null);
+  const {stored, api} = apiFixture();
+  stored[CATALOG_PREFIX+'stars/octocat'] = {owner:'stars',repo:'octocat'};
+  assert.deepEqual(await loadCatalog(api), []);
+  assert.equal(await rememberRepositories(api, [{owner:'STARS',repo:'octocat'}]), 0);
+  let receive;
+  api.runtime = {onMessage:{addListener:listener => { receive=listener; }}};
+  registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url}, {frameId:0,url,tab:{incognito:false}}), undefined);
+  api.permissions = {request:async () => true};
+  api.history = {search:async () => [...urls.map(url => ({url})), {url:'https://github.com/Octocat/stars'}]};
+  assert.deepEqual(await importHistory(api), {granted:true,count:1});
+  assert.deepEqual(await loadCatalog(api), [{owner:'Octocat',repo:'stars'}]);
+  assert.deepEqual(stored.config, {version:1});
+});
+
 test('repository discovery handles all repository pages and rejects other hosts and global routes', () => {
   for (const path of ['','/tree/main','/blob/main/README.md','/pull/102/files','/issues/2','/settings','/actions']) {
     assert.deepEqual(repositoryFromURL(`https://github.com/Alice/project${path}?x=1#anchor`),{owner:'Alice',repo:'project'});

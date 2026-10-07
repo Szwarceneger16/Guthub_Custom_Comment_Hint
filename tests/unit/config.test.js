@@ -29,7 +29,7 @@ test('invalid types, modes, references, assignments, URL names and collisions ar
   for(const invalid of [null,1,[],true]) assert.ok(validateConfig(invalid).length);
 });
 test('Unicode, multiline text and empty strings round-trip with optional UTF-8 BOM', () => {
-  const config=example(); config.layouts.ci[0]={label:'🤖 Zażółć gęślą\njaźń',value:'Pierwsza\nDruga 🧪\n',mode:'append'};
+  const config=example(); config.layouts.ci[0]={label:'🤖 Zażółć gęślą\r\njaźń',value:'Pierwsza\r\nDruga 🧪\rTrzecia\n',mode:'append'};
   config.layouts.empty=[{label:'',value:'',mode:'replace'}];
   const output=exportConfig(config);assert.ok(!output.startsWith('\uFEFF'));
   assert.deepEqual(decodeConfig(new TextEncoder().encode('\uFEFF'+output)),config);

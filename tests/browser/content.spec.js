@@ -3,6 +3,41 @@ import { openConversation, form, config } from './helpers.js';
 import { readFileSync } from 'node:fs';
 
 const toolbar=page=>page.locator('[data-comment-hint]');
+for (const mode of ['replace','append']) test(`Undo restores text and selection after ${mode} with normalized line endings`,async({page})=>{
+  const values=['Zażółć\r\n🧪\r\n','Zażółć\r🧪\r','Zażółć\r\n🧪\rEnd\n'];
+  const initial=config();initial.layouts.ci=values.map((value,index)=>({label:`Insert ${index}`,value,mode}));initial.repositories.Alice.repo=['ci'];
+  await openConversation(page,{initial});await expect(toolbar(page)).toHaveCount(1);
+  const editor=page.locator('#new_comment_field');const undo=page.getByRole('button',{name:'Undo',exact:true});
+  for (let index=0;index<values.length;index++) {
+    for (const before of ['', 'Draft 🧪\nSecond line']) {
+      await editor.fill(before);await editor.evaluate(node=>node.setSelectionRange(1,4,'backward'));
+      const selection=await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection]);
+      await page.getByRole('button',{name:`Insert ${index}`,exact:true}).click();
+      const expected=(mode==='append'&&before?before+'\n':'')+values[index].replace(/\r\n?/g,'\n');
+      await expect(editor).toHaveValue(expected);await expect(editor).toBeFocused();
+      expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd])).toEqual([expected.length,expected.length]);
+      await undo.click();await expect(editor).toHaveValue(before);
+      expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual(selection);
+      await expect(undo).toBeDisabled();
+    }
+  }
+  await page.getByRole('button',{name:'Insert 0',exact:true}).click();
+  const first=await editor.inputValue();
+  await page.getByRole('button',{name:'Insert 1',exact:true}).click();await undo.click();await expect(editor).toHaveValue(first);
+  expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(initial);
+  expect(await page.evaluate(()=>window.submissions)).toBe(0);
+});
+
+test('a silent page mutation after normalized insertion cannot be undone over the new text',async({page})=>{
+  const initial=config();initial.layouts.ci[0].value='First\r\nSecond\r';
+  await openConversation(page,{initial});await expect(toolbar(page)).toHaveCount(1);
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  const editor=page.locator('#new_comment_field');await editor.evaluate(node=>{node.value='Later draft';node.setSelectionRange(1,4,'backward');});
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(editor).toHaveValue('Later draft');
+  expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual([1,4,'backward']);
+  await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeDisabled();
+});
+
 for(const kind of ['pull','issues'])test(`insertion and Undo refresh the Comment button's form validity on ${kind}`,async({page})=>{
   const initial=config();initial.layouts.ci=[
     {label:'Replace',value:'/review',mode:'replace'},
@@ -127,9 +162,14 @@ test('repository visits persist without assignments and across SPA navigation ou
   await expect.poll(()=>page.evaluate(()=>window.__mock.storage['repositoryCatalog:bob/two'])).toEqual({owner:'Bob',repo:'two'});
   expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(initial);
   await expect(toolbar(page)).toHaveCount(0);
-  await page.evaluate(()=>history.pushState({},'','/settings/profile'));
-  await expect.poll(()=>page.evaluate(()=>location.pathname)).toBe('/settings/profile');
-  expect(await page.evaluate(()=>Object.keys(window.__mock.storage).filter(key=>key.startsWith('repositoryCatalog:')).sort())).toEqual(['repositoryCatalog:alice/one','repositoryCatalog:bob/two']);
+  const messages=await page.evaluate(()=>window.__mock.messages.length);
+  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise']) {
+    await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new Event('popstate'));},path);
+    // Wait for the periodic observer as well as the navigation event.
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(()=>window.__mock.messages.length)).toBe(messages);
+    expect(await page.evaluate(()=>Object.keys(window.__mock.storage).filter(key=>key.startsWith('repositoryCatalog:')).sort())).toEqual(['repositoryCatalog:alice/one','repositoryCatalog:bob/two']);
+  }
 });
 test('mount above Write/Preview, insert exactly, update editor state, and never submit',async({page})=>{
   await openConversation(page);

@@ -67,6 +67,8 @@ newline when the existing text is nonempty and does not already end in a newline
 The configured value is not trimmed. Firefox's textarea API represents line endings
 as LF; configuration import/export preserves the original string values.
 
+Undo compares against the textarea's actual LF-normalized value, so CRLF and
+lone-CR configuration strings remain undoable without rewriting the configuration.
 Undo restores the text and selection before the most recent insertion. It is a
 single step, cleared by manual editing, submission, reset, navigation, or editor
 replacement. Rebuilding a toolbar after button changes also clears its Undo state.
@@ -91,7 +93,7 @@ are deduplicated without regard to case; different owners remain distinct.
 searches all retained HTTPS GitHub history with explicit all-time and result-limit
 parameters. It is not restricted to recent visits, the default 100 results, or open
 tabs. Deleted history and private browsing are unavailable. GitHub profiles and
-global routes such as settings, organizations, enterprises and topics do not become repository
+global routes such as settings, organizations, enterprises, stars and topics do not become repository
 suggestions. URL extraction identifies candidates; it does not verify whether a
 repository still exists or whether you still have access.
 

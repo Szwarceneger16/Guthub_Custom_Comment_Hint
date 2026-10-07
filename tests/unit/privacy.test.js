@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { zipSync } from 'fflate';
 import { privacyFindings, prohibitedPath } from '../../scripts/privacy-rules.js';
+
+const png = readFileSync('src/icons/hint-16.png');
+const token = ['github', 'pat', ''].join('_') + 'A'.repeat(40);
+function chunk(type, value) {
+  const bytes = Buffer.from(value); const header = Buffer.alloc(8);
+  header.writeUInt32BE(bytes.length); header.write(type, 4, 'ascii');
+  return Buffer.concat([header, bytes, Buffer.alloc(4)]);
+}
 
 test('privacy checks flag sensitive content without returning its values', () => {
   const cases = [
@@ -9,6 +21,9 @@ test('privacy checks flag sensitive content without returning its values', () =>
     ['https://' + ['account', 'password'].join(':') + '@service.test/', 'credential-url'],
     ['person' + '@' + 'mail.company', 'contact-email'],
     [JSON.stringify({ ['thread' + '_id']: 'a'.repeat(8) + '-0000-0000-0000-000000000000' }), 'conversation-identifier'],
+    [JSON.stringify({ ['api'+'_key']: 'A'.repeat(24) }), 'literal-secret'],
+    [['api', 'secret'].join('_')+'="'+'A'.repeat(24)+'"', 'literal-secret'],
+    ["'"+['pass', 'word'].join('')+"': '"+'A'.repeat(24)+"'", 'literal-secret'],
   ];
   for (const [value, expected] of cases) {
     const findings = privacyFindings(Buffer.from(value));
@@ -20,6 +35,61 @@ test('public identity, fictional data and original PNGs remain allowed', () => {
   assert.deepEqual(privacyFindings(Buffer.from('123+demo@users.noreply.github.com person@example.com https://github.com/demo/project')), []);
   assert.equal(prohibitedPath('docs/' + ['RECOVERED', 'CONVERSATION.md'].join('_')), true);
   assert.equal(prohibitedPath('docs/CONFIGURATION.md'), false);
-  const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0, 73, 69, 78, 68, 0, 0, 0, 0]);
   assert.deepEqual(privacyFindings(png), []);
+});
+
+test('PNG trailing bytes receive every general privacy check without disclosing matched values', () => {
+  const cases = [
+    [['-----BEGIN ', 'OPENSSH ', 'PRIVATE KEY-----'].join(''), 'private-key'],
+    [token, 'github-token'],
+    [['AK', 'IA'].join('')+'A'.repeat(16), 'aws-access-key'],
+    [['xox', 'b-'].join('')+'A'.repeat(24), 'service-token'],
+    [String.fromCharCode(47)+['home', 'demo', 'file'].join('/'), 'local-machine-path'],
+    ['https://'+['account', 'password'].join(':')+'@service.test/', 'credential-url'],
+    ['https://github.com/demo/'+['project', 'private'].join('-'), 'private-repository-reference'],
+    [JSON.stringify({['thread'+'_id']:'a'.repeat(8)+'-0000-0000-0000-000000000000'}), 'conversation-identifier'],
+    [JSON.stringify({['api'+'_key']:'A'.repeat(24)}), 'literal-secret'],
+    [['person', 'mail.company'].join('@'), 'contact-email'],
+  ];
+  for (const [value, expected] of cases) {
+    const findings=privacyFindings(Buffer.concat([png,Buffer.from('\n'+value+'\n')]));
+    assert.ok(findings.includes(expected), expected);
+    assert.ok(findings.every(finding => !finding.includes(value)));
+  }
+});
+
+test('PNG chunk content and malformed chunk sizes cannot bypass byte scanning; metadata remains flagged', () => {
+  const signature=png.subarray(0,8); const end=chunk('IEND','');
+  for (const type of ['eXIf','tEXt','zTXt','iTXt']) {
+    assert.deepEqual(privacyFindings(Buffer.concat([signature,chunk(type,'\n'+token+'\n'),chunk(type,''),end])), ['image-metadata','github-token']);
+  }
+  assert.deepEqual(privacyFindings(Buffer.concat([signature,chunk('raNd','\n'+token+'\n'),end])), ['github-token']);
+  const oversized=Buffer.alloc(8); oversized.writeUInt32BE(0xffffffff); oversized.write('IDAT',4);
+  assert.deepEqual(privacyFindings(Buffer.concat([signature,oversized,Buffer.from('\n'+token+'\n')])), ['github-token']);
+  assert.deepEqual(privacyFindings(Buffer.concat([signature,Buffer.from('\n'+token+'\n')])), ['github-token']);
+});
+
+test('the privacy audit rejects PNG trailers in files, unreachable Git blobs and release ZIP entries', () => {
+  mkdirSync('.cache', {recursive:true}); const directory=mkdtempSync(path.resolve('.cache/privacy-fixture-'));
+  // Never let inherited Git overrides redirect synthetic blobs into the project.
+  const env=Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+  try {
+    mkdirSync(path.join(directory,'scripts')); mkdirSync(path.join(directory,'artifacts'));
+    for (const name of ['privacy-audit.js','privacy-rules.js','release-files.js']) copyFileSync('scripts/'+name,path.join(directory,'scripts',name));
+    writeFileSync(path.join(directory,'package.json'), '{"type":"module"}');
+    writeFileSync(path.join(directory,'.gitignore'), 'artifacts/\n');
+    execFileSync('git',['init','--quiet','--template='],{cwd:directory,env});
+    const bytes=Buffer.concat([png,Buffer.from('\n'+token+'\n')]);
+    writeFileSync(path.join(directory,'image.png'),bytes);
+    const oid=execFileSync('git',['hash-object','-w','--stdin'],{cwd:directory,env,input:bytes,encoding:'utf8'}).trim();
+    writeFileSync(path.join(directory,'artifacts/package.zip'),zipSync({'image.png':bytes}));
+    writeFileSync(path.join(directory,'artifacts/release-report.json'),JSON.stringify({packages:[{path:'artifacts/package.zip'}]}));
+    const result=spawnSync(process.execPath,['scripts/privacy-audit.js','--history','--packages'],{cwd:directory,env,encoding:'utf8'});
+    assert.equal(result.status,1,result.stderr);
+    const report=JSON.parse(readFileSync(path.join(directory,'artifacts/privacy-audit.json'),'utf8'));
+    assert.deepEqual(report.worktree.findings,[{file:'image.png',kinds:['github-token']}]);
+    assert.deepEqual(report.git_objects.findings,[{object:oid,type:'blob',kinds:['github-token']}]);
+    assert.deepEqual(report.packages.findings,[{archive:'package.zip',file:'image.png',kinds:['github-token']}]);
+    assert.ok(!(JSON.stringify(report)+result.stdout+result.stderr).includes(token));
+  } finally { rmSync(directory,{recursive:true,force:true}); }
 });

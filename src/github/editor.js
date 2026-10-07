@@ -53,8 +53,9 @@ export function attachToolbar(document, target, buttons, undoLabel, conversation
     onInsert: (definition) => {
       if (!current()) return;
       state.capture(editor);
-      insertedValue = insertText(editor.value, definition);
-      write(insertedValue);
+      write(insertText(editor.value, definition));
+      // The native textarea setter normalizes CRLF and lone CR to LF.
+      insertedValue = editor.value;
       grid.setUndoAvailable(true);
     },
     onUndo: () => {

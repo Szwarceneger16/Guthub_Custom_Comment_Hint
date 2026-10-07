@@ -44,14 +44,15 @@ export async function openConversation(page, { initial=config(), url='https://gi
   await page.addScriptTag({path:'dist/extension/content.js'});
 }
 
-export async function openOptions(page, initial=config(), locale='en') {
+export async function openOptions(page, initial=config(), locale='en', {beforeOptions,waitReady=true}={}) {
   await mockAPI(page,initial,locale);
   await page.route('**/*',async route=>{
     const pathname=new URL(route.request().url()).pathname;
     const filename=path.basename(pathname);
     if(!['index.html','options.js','options.css'].includes(filename)) return route.abort();
+    if(filename==='options.js'&&beforeOptions)await beforeOptions(page);
     await route.fulfill({status:200,contentType:filename.endsWith('.js')?'application/javascript':filename.endsWith('.css')?'text/css':'text/html',body:readFileSync(`dist/extension/options/${filename}`)});
   });
   await page.goto('https://fixtures.invalid/options/index.html');
-  await page.locator('#save:not([disabled])').waitFor();
+  if(waitReady)await page.locator('#save:not([disabled])').waitFor();
 }

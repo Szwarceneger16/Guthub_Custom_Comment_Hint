@@ -14,6 +14,14 @@ export function prohibitedPath(name) {
   return /(?:^|\/)(?:RECOVERY(?:_PROVENANCE)?\.(?:md|json)|RECOVERED_[^/]+|AGENT_HANDOFF\.md|\.codex|\.memory|memory)(?:$|\/)/i.test(name);
 }
 
+export function privacyPathFindings(name) {
+  // Preserve both spellings: separator folding must not hide Windows/URL patterns.
+  const normalized=name.replaceAll('\\','/');
+  const kinds=[...privacyFindings(Buffer.from(name)),...privacyFindings(Buffer.from(normalized))];
+  if(prohibitedPath(normalized))kinds.push('retired-private-material');
+  return [...new Set(kinds)];
+}
+
 export function privacyFindings(bytes) {
   const buffer = Buffer.from(bytes);
   const findings = [];

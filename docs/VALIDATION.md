@@ -30,7 +30,7 @@ mise exec -- pnpm check:integrity
 mise exec -- pnpm audit:privacy --history --packages
 ```
 
-The current run passed 34 logic/privacy tests, 72 Firefox fixture tests and six
+The current run passed 38 logic/privacy tests, 89 Firefox fixture tests and six
 intercepted signing checks. Source reproduction matched all 15 runtime files,
 and lint returned zero errors/notices with the
 known Desktop-only warning. Audit scope is summarized in REPOSITORY_PRIVACY.md.
@@ -84,6 +84,20 @@ reads preserve the draft for retry. Toolbar tests preserve the same host, text, 
 through JSON property reordering and added/changed/removed unknown fields. Changes
 to effective labels, values, modes or button order still rebuild the toolbar and
 use the updated insertion behavior.
+
+Settings startup retains notifications instead of issuing an unguarded reread.
+Regressions reproduce events during the old reread and initial-read rejection,
+cover valid/invalid/null/removal values, and prevent defaults from overwriting a
+newer event when the initial snapshot lacks the key. A failure without a notification
+reports unavailability and performs no writes.
+
+Path audit regressions use benign file contents with synthetic sensitive values
+only in filenames, parent directories and archive names. General rules scan both
+original and separator-normalized paths. All local Git trees, including unreachable
+trees, are traversed with full nested paths. Tests verify worktree/tree/ZIP rejection,
+opaque path identifiers in reports and console output, and allowed Unicode/tab/newline
+names. Fixtures are created in disposable repositories; synthetic values never
+enter this project's Git objects.
 
 Firefox tests cover CRLF, lone CR and mixed line endings in replace/append,
 empty/nonempty Unicode drafts, end-of-text cursor placement, selection restoration,

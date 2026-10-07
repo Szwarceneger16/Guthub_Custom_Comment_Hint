@@ -22,6 +22,12 @@ test('initialize only missing storage; updates and invalid stored values are pre
     if(Object.hasOwn(stored,'config')) assert.equal(result,stored.config);
   }
 });
+test('a newer startup event prevents initialization from a stale missing-key snapshot',async()=>{
+  let finish;let current=true;const writes=[];
+  const api={storage:{local:{get:()=>new Promise(resolve=>finish=resolve),set:async value=>writes.push(value)}}};
+  const pending=initializeConfig(api,()=>current);
+  current=false;finish({});assert.equal(await pending,undefined);assert.deepEqual(writes,[]);
+});
 test('invalid configuration never reaches storage and write failures propagate',async()=>{
   let writes=0;const api={storage:{local:{set:async()=>{writes++;throw new Error('quota');}}}};
   await assert.rejects(saveConfig(api,{version:2}));assert.equal(writes,0);

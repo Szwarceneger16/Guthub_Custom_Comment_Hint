@@ -63,6 +63,9 @@ Unknown configuration versions remain available in JSON for correction or export
 through Firefox tools; this version does not automatically migrate them. Unknown
 extra JSON fields are retained and have no operational effect. Use JSON to change
 an existing owner/repository name, or remove and recreate its assignment in forms.
+While settings start, the newest storage notification takes precedence over a
+pending read, including read failure or a missing-key snapshot. Invalid, null and
+removed values remain available in JSON; defaults do not overwrite a newer event.
 
 ## Comment behavior
 

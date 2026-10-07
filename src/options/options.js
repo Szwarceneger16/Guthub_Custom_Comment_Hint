@@ -15,6 +15,7 @@ let saving = false;
 let operation = 0;
 let disposed = false;
 let storageRevision = 0;
+let startupConfig = null;
 let catalog = [];
 let catalogRevision = 0;
 let discoveryBusy = false;
@@ -312,7 +313,7 @@ api.storage.onChanged.addListener((changes,area) => {
   if (Object.keys(changes).some(key => key.startsWith(CATALOG_PREFIX))) refreshCatalog();
   if (!own(changes,'config')) return;
   storageRevision++;
-  if (!model) return;
+  if (!model) { startupConfig={value:clone(changes.config.newValue)}; return; }
   if (saving) { model.external={value:clone(changes.config.newValue)}; return; }
   if (model.receiveExternal(changes.config.newValue)) { clearError(); render(); status(t('externalLoaded')); }
   else status(t('externalPending'));
@@ -323,13 +324,16 @@ window.addEventListener('pagehide', () => { disposed=true; operation++; });
 async function start() {
   $('save').disabled=true; $('discard').disabled=true;
   try {
-    const revision=storageRevision;
-    let saved=await initializeConfig(api);
-    if (revision!==storageRevision) saved=await loadConfig(api);
+    let saved;
+    try { saved=await initializeConfig(api,()=>startupConfig===null); }
+    catch (error) { if (startupConfig===null) throw error; }
     if (disposed) return;
+    // Keep the latest notification, including removal, instead of starting another read.
+    if (startupConfig!==null) saved=startupConfig.value;
+    startupConfig=null;
     model=new Draft(saved); render(); $('discard').disabled=false;
     refreshCatalog();
     if (validateConfig(saved).length) { showError(new ConfigError(validateConfig(saved))); status(t('invalidStored')); }
-  } catch { status(t('loadFailed')); }
+  } catch { if (!disposed) status(t('loadFailed')); }
 }
 start();

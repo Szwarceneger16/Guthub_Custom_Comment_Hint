@@ -25,6 +25,10 @@ placeholder exclusions. PNG pixel content is reviewed visually.
 Private-key checks include encrypted PKCS #8 PEM. Isolated audit regressions cover
 worktree files, unreachable Git blobs and ZIP entries; public-key and certificate
 headers remain allowed.
+General rules also scan original and separator-normalized path names in worktree
+files, full nested Git trees and ZIP entries. Sensitive paths are replaced with
+opaque SHA-256-derived identifiers in findings and console output. Archive locations
+are checked too; an archive with a sensitive name is rejected before opening it.
 
 ```sh
 mise exec -- pnpm audit:privacy --history --packages
@@ -60,8 +64,8 @@ The current review candidate passed these local checks:
 
 | Check | Result |
 | --- | --- |
-| Logic and privacy-rule tests | 34 passed. |
-| Firefox synthetic fixture tests | 72 passed. |
+| Logic and privacy-rule tests | 38 passed. |
+| Firefox synthetic fixture tests | 89 passed. |
 | Intercepted signing checks | 6 passed; no AMO request. |
 | web-ext lint | 0 errors, 0 notices, 1 retained Desktop-only warning. |
 | Extracted-source rebuild | All 15 runtime files match byte for byte. |

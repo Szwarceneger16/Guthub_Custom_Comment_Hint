@@ -1,6 +1,76 @@
 import { test, expect } from '@playwright/test';
 import { openOptions, config } from './helpers.js';
 
+const deferStartupReads=async(page,{missing=false}={})=>page.evaluate(({missing})=>{
+  if(missing)delete window.__mock.storage.config;
+  const get=browser.storage.local.get;
+  let reads=0;
+  browser.storage.local.get=async keys=>{
+    const snapshot=await get(keys);
+    if(keys==='config') {
+      const key=++reads===1?'finishStartupRead':'finishStartupReread';
+      await new Promise((resolve,reject)=>window.__mock[key]=fail=>fail?reject(new Error('startup read')):resolve());
+    }
+    return snapshot;
+  };
+}, {missing});
+const startupValue=kind=>{
+  const value=kind==='valid'?config():kind==='invalid'?{version:999}:kind==='null'?null:undefined;
+  if(kind==='valid')value.layouts.ci[0].value='Latest startup';
+  return value;
+};
+async function expectStartupValue(page,value) {
+  await expect(page.locator('#save')).toBeEnabled();await expect(page.locator('#discard')).toBeEnabled();
+  if(value?.version===1)await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Latest startup');
+  else {
+    await expect(page.locator('#tab-json')).toHaveAttribute('aria-selected','true');
+    await expect(page.locator('#json-editor')).toHaveValue(JSON.stringify(value,null,2)??'');
+    await page.getByRole('button',{name:'Validate',exact:true}).click();
+    await expect(page.locator('#errors')).not.toHaveText('');
+  }
+  await expect(page.locator('#dirty')).toHaveText('No unsaved changes');
+  expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(value);
+  expect(await page.evaluate(()=>window.__mock.writes)).toBe(0);
+}
+for(const outcome of ['resolve','reject'])for(const kind of ['valid','invalid','null','removed'])test(`startup accepts a newer ${kind} event across a ${outcome} reread`,async({page})=>{
+  await openOptions(page,config(),'en',{beforeOptions:deferStartupReads,waitReady:false});
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishStartupRead)).toBe('function');
+  const first=config();first.layouts.ci[0].value='Earlier startup';const latest=startupValue(kind);
+  await page.evaluate(async({first,latest,fail})=>{
+    window.__mock.external(first);window.__mock.finishStartupRead(false);
+    await new Promise(resolve=>setTimeout(resolve,0));
+    window.__mock.external(latest);
+    window.__mock.finishStartupReread?.(fail);
+    await new Promise(resolve=>setTimeout(resolve,0));
+  },{first,latest,fail:outcome==='reject'});
+  await expectStartupValue(page,latest);
+});
+for(const kind of ['valid','invalid','null','removed'])test(`a failed initial settings read accepts its latest ${kind} startup notification`,async({page})=>{
+  await openOptions(page,config(),'en',{beforeOptions:deferStartupReads,waitReady:false});
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishStartupRead)).toBe('function');
+  const latest=startupValue(kind);
+  await page.evaluate(({first,latest})=>{window.__mock.external(first);window.__mock.external(latest);window.__mock.finishStartupRead(true);},{first:config(),latest});
+  await expectStartupValue(page,latest);
+});
+for(const kind of ['valid','invalid','null','removed'])test(`a stale missing-config read does not initialize defaults over a ${kind} startup event`,async({page})=>{
+  await openOptions(page,config(),'en',{beforeOptions:page=>deferStartupReads(page,{missing:true}),waitReady:false});
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishStartupRead)).toBe('function');
+  const latest=startupValue(kind);
+  await page.evaluate(async latest=>{
+    window.__mock.external(latest);window.__mock.finishStartupRead(false);
+    await new Promise(resolve=>setTimeout(resolve,0));window.__mock.finishStartupReread?.(false);
+  },latest);
+  await expectStartupValue(page,latest);
+});
+test('a startup read failure without notifications reports failure and performs no writes',async({page})=>{
+  await openOptions(page,config(),'en',{beforeOptions:deferStartupReads,waitReady:false});
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishStartupRead)).toBe('function');
+  await page.evaluate(()=>window.__mock.finishStartupRead(true));
+  await expect(page.locator('#status')).toContainText('Could not read local configuration');
+  await expect(page.locator('#save')).toBeDisabled();await expect(page.locator('#discard')).toBeDisabled();
+  expect(await page.evaluate(()=>window.__mock.writes)).toBe(0);
+});
+
 const deferDiscardRead=async page=>page.evaluate(()=>{
   const get=browser.storage.local.get;
   window.__mock.originalGet=get;

@@ -56,6 +56,22 @@ test('repository discovery handles all repository pages and rejects other hosts 
     assert.equal(repositoryFromURL(url),null,url);
   }
 });
+test('marketing routes are excluded across discovery, history, writes and existing catalogs', async () => {
+  const pairs=[{owner:'solutions',repo:'industry'},{owner:'resources',repo:'articles'}];
+  const urls=pairs.flatMap(({owner,repo}) => [owner,owner.toUpperCase()].flatMap(prefix =>
+    ['', '/security'].map(path => `https://github.com/${prefix}/${repo}${path}?x=1#section`)));
+  for (const url of urls) assert.equal(repositoryFromURL(url),null);
+  const {stored,api}=apiFixture();
+  for (const pair of pairs) stored[CATALOG_PREFIX+pair.owner+'/'+pair.repo]=pair;
+  assert.deepEqual(await loadCatalog(api),[]);assert.equal(await rememberRepositories(api,pairs),0);
+  let receive;api.runtime={onMessage:{addListener:listener=>{receive=listener;}}};registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url},{url,frameId:0,tab:{incognito:false}}),undefined);
+  api.permissions={request:async()=>true};
+  api.history={search:async()=>[...urls.map(url=>({url})),{url:'https://github.com/Alice/solutions'},{url:'https://github.com/Bob/resources'}]};
+  assert.deepEqual(await importHistory(api),{granted:true,count:2});
+  assert.deepEqual(await loadCatalog(api),[{owner:'Alice',repo:'solutions'},{owner:'Bob',repo:'resources'}]);
+  assert.deepEqual(stored.config,{version:1});
+});
 test('repository catalog deduplicates case but distinguishes owners; concurrent writes preserve config', async () => {
   const {stored,api}=apiFixture();
   await Promise.all([

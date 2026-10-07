@@ -30,7 +30,7 @@ mise exec -- pnpm check:integrity
 mise exec -- pnpm audit:privacy --history --packages
 ```
 
-The current run passed 29 logic/privacy tests, 49 Firefox fixture tests and six
+The current run passed 31 logic/privacy tests, 56 Firefox fixture tests and six
 intercepted signing checks. Source reproduction matched all 15 runtime files,
 and lint returned zero errors/notices with the
 known Desktop-only warning. Audit scope is summarized in REPOSITORY_PRIVACY.md.
@@ -59,7 +59,16 @@ and other chunk content, truncated/oversized chunks, and an isolated audit run
 against a worktree file, an unreachable Git blob and a ZIP entry. Audit reports
 and console output contain finding types rather than the synthetic matched value.
 Related checks also exposed and fixed quoted JSON credential keys being missed
-by the literal-secret rule; quoted and unquoted assignments are covered.
+by the literal-secret rule; quoted and unquoted keys and values are covered,
+including environment/YAML syntax and the existing placeholder exclusions.
+
+Marketing prefixes `solutions` and `resources` are excluded by the same shared
+filter as other global routes. Regressions cover visits, background messages,
+history imports and existing catalogs while preserving ordinary repositories
+with those names. Content-script startup tests settle a deferred initial read
+with success or failure after valid, invalid or removal events; the newer event
+always wins and preserves an active toolbar's draft and Undo state. A failure
+without a newer event remains inactive and recovers after a later valid event.
 
 Firefox tests cover CRLF, lone CR and mixed line endings in replace/append,
 empty/nonempty Unicode drafts, end-of-text cursor placement, selection restoration,

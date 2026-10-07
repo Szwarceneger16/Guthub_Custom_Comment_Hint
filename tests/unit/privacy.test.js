@@ -37,6 +37,20 @@ test('public identity, fictional data and original PNGs remain allowed', () => {
   assert.equal(prohibitedPath('docs/CONFIGURATION.md'), false);
   assert.deepEqual(privacyFindings(png), []);
 });
+test('credential assignments accept optional key/value quotes and preserve placeholder exclusions', () => {
+  const keys=[['WEB','EXT','API','KEY'].join('_'),['WEB','EXT','API','SECRET'].join('_'),['pass','word'].join(''),['api','key'].join('_'),['api','secret'].join('_')];
+  for (const key of keys) for (const separator of ['=',': ']) for (const keyQuote of ['',"'",'"']) for (const quote of ['',"'",'"']) {
+    const assignment=value=>keyQuote+key+keyQuote+separator+quote+value+quote;
+    const secret=assignment('A'.repeat(32));
+    for (const bytes of [Buffer.from(secret),Buffer.concat([png,Buffer.from('\n'+secret+'\n')])]) {
+      assert.deepEqual(privacyFindings(bytes),['literal-secret']);
+      assert.ok(!JSON.stringify(privacyFindings(bytes)).includes(secret));
+    }
+    for (const placeholder of ['local-preflight-'+'A'.repeat(32),'${'+'EXAMPLE_SECRET'.repeat(3)+'}','<'+'redacted'.repeat(5)+'>']) {
+      assert.deepEqual(privacyFindings(Buffer.from(assignment(placeholder))),[]);
+    }
+  }
+});
 
 test('PNG trailing bytes receive every general privacy check without disclosing matched values', () => {
   const cases = [

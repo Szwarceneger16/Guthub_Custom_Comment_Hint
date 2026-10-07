@@ -30,7 +30,7 @@ export async function mockAPI(page, initial=config(), locale='en') {
   },{initial,messages,locale});
 }
 
-export async function openConversation(page, { initial=config(), url='https://github.com/Alice/repo/pull/12', body=form(), locale='en' }={}) {
+export async function openConversation(page, { initial=config(), url='https://github.com/Alice/repo/pull/12', body=form(), locale='en', beforeContent }={}) {
   await mockAPI(page,initial,locale);
   await page.route('**/*', route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html data-color-mode="light"><head><meta charset="utf-8"></head><body>${body}<script>
     window.submissions=0;window.inputs=0;
@@ -40,6 +40,7 @@ export async function openConversation(page, { initial=config(), url='https://gi
     </script></body></html>`}));
   await page.goto(url);
   await page.addScriptTag({path:'dist/extension/background.js'});
+  if (beforeContent) await beforeContent(page);
   await page.addScriptTag({path:'dist/extension/content.js'});
 }
 

@@ -78,13 +78,13 @@ test('a matching concurrent save leaves no conflict and preserves edits made whi
 
 test('history suggestions include old visits and more than 100 results while preserving the draft',async({page})=>{
   await openOptions(page);await page.getByLabel('Button label',{exact:true}).fill('Unsaved 🧪');
-  await page.evaluate(()=>{window.__mock.historyItems=[...Array.from({length:128},(_,i)=>({url:`https://github.com/Visitors/repo${i}/tree/main`,title:'Not persisted',lastVisitTime:1})),{url:'https://github.com/Legacy/archive/blob/main/file',lastVisitTime:1},{url:'https://github.com/ALICE/REPO/issues/9'},{url:'https://github.com/visitors/REPO0/pull/1'},{url:'https://evil.invalid/test',title:'https://github.com/'},{url:'https://github.com/settings/profile'},{url:'https://github.com/stars/octocat'},{url:'https://github.com/STARS/octocat/lists/review-tools'},{url:'https://github.com/enterprises/demo-enterprise'}];});
+  await page.evaluate(()=>{window.__mock.historyItems=[...Array.from({length:128},(_,i)=>({url:`https://github.com/Visitors/repo${i}/tree/main`,title:'Not persisted',lastVisitTime:1})),{url:'https://github.com/Legacy/archive/blob/main/file',lastVisitTime:1},{url:'https://github.com/ALICE/REPO/issues/9'},{url:'https://github.com/visitors/REPO0/pull/1'},{url:'https://evil.invalid/test',title:'https://github.com/'},{url:'https://github.com/settings/profile'},{url:'https://github.com/stars/octocat'},{url:'https://github.com/STARS/octocat/lists/review-tools'},{url:'https://github.com/enterprises/demo-enterprise'},{url:'https://github.com/solutions/industry'},{url:'https://github.com/RESOURCES/articles/security'}];});
   await page.getByRole('tab',{name:'Assignments',exact:true}).click();
   await page.getByRole('button',{name:'Import GitHub history',exact:true}).click();
   await expect(page.locator('#repository-status')).toContainText('Imported 130 unique repositories');
   await expect(page.locator('#known-repositories option')).toHaveCount(131);
   await expect(page.locator('#known-repositories option[value="Legacy/archive"]')).toHaveCount(1);
-  await expect(page.locator('#known-repositories option[value^="stars/" i], #known-repositories option[value^="enterprises/" i]')).toHaveCount(0);
+  await expect(page.locator('#known-repositories option[value^="stars/" i], #known-repositories option[value^="enterprises/" i], #known-repositories option[value^="solutions/" i], #known-repositories option[value^="resources/" i]')).toHaveCount(0);
   expect(await page.evaluate(()=>window.__mock.permissionRequests)).toEqual([{permissions:['history']}]);
   expect(await page.evaluate(()=>window.__mock.historyQueries)).toEqual([{text:'https://github.com/',startTime:0,maxResults:2147483647}]);
   expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(config());

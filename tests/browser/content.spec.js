@@ -3,6 +3,41 @@ import { openConversation, form, config } from './helpers.js';
 import { readFileSync } from 'node:fs';
 
 const toolbar=page=>page.locator('[data-comment-hint]');
+const deferInitialConfigRead=async page=>page.evaluate(()=>{
+  const get=browser.storage.local.get;const snapshot=structuredClone(window.__mock.storage.config);
+  browser.storage.local.get=keys=>keys==='config'?new Promise((resolve,reject)=>{
+    window.__mock.finishInitialRead=fail=>fail?reject(new Error('initial read')):resolve({config:snapshot});
+  }):get(keys);
+});
+for (const outcome of ['reject','resolve']) for (const eventValue of ['valid','invalid','removed']) test(`initial config ${outcome} preserves a newer ${eventValue} storage event`,async({page})=>{
+  await openConversation(page,{beforeContent:deferInitialConfigRead});
+  await expect(toolbar(page)).toHaveCount(0);
+  const editor=page.locator('#new_comment_field');await editor.fill('Keep draft 🧪');
+  const latest=config();latest.layouts.ci[0]={label:'Latest CI',value:'/latest',mode:'replace'};
+  const value=eventValue==='valid'?latest:eventValue==='invalid'?{version:999}:undefined;
+  await page.evaluate(value=>window.__mock.external(value),value);
+  if (eventValue==='valid') {
+    await expect(page.getByRole('button',{name:'Latest CI',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Latest CI',exact:true}).click();await expect(editor).toHaveValue('/latest');
+  }
+  await page.evaluate(async fail=>{window.__mock.finishInitialRead(fail);await new Promise(resolve=>setTimeout(resolve,0));},outcome==='reject');
+  if (eventValue==='valid') {
+    await expect(page.getByRole('button',{name:'Latest CI',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeEnabled();
+    await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(editor).toHaveValue('Keep draft 🧪');
+  } else {
+    await expect(toolbar(page)).toHaveCount(0);await expect(editor).toHaveValue('Keep draft 🧪');
+    await page.evaluate(latest=>window.__mock.external(latest),latest);await expect(page.getByRole('button',{name:'Latest CI',exact:true})).toBeVisible();
+  }
+  expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(eventValue==='valid'?value:latest);
+});
+test('an initial read failure stays inactive and recovers on a later valid storage event',async({page})=>{
+  await openConversation(page,{beforeContent:deferInitialConfigRead});await page.locator('#new_comment_field').fill('Keep draft');
+  await page.evaluate(async()=>{window.__mock.finishInitialRead(true);await new Promise(resolve=>setTimeout(resolve,0));});
+  await expect(toolbar(page)).toHaveCount(0);await expect(page.locator('#new_comment_field')).toHaveValue('Keep draft');
+  await page.evaluate(next=>window.__mock.external(next),config());await expect(toolbar(page)).toHaveCount(1);
+  await expect(page.locator('#new_comment_field')).toHaveValue('Keep draft');
+});
 for (const mode of ['replace','append']) test(`Undo restores text and selection after ${mode} with normalized line endings`,async({page})=>{
   const values=['Zażółć\r\n🧪\r\n','Zażółć\r🧪\r','Zażółć\r\n🧪\rEnd\n'];
   const initial=config();initial.layouts.ci=values.map((value,index)=>({label:`Insert ${index}`,value,mode}));initial.repositories.Alice.repo=['ci'];
@@ -163,7 +198,7 @@ test('repository visits persist without assignments and across SPA navigation ou
   expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(initial);
   await expect(toolbar(page)).toHaveCount(0);
   const messages=await page.evaluate(()=>window.__mock.messages.length);
-  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise']) {
+  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise','/solutions/industry','/RESOURCES/articles/security']) {
     await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new Event('popstate'));},path);
     // Wait for the periodic observer as well as the navigation event.
     await page.waitForTimeout(500);

@@ -93,8 +93,9 @@ are deduplicated without regard to case; different owners remain distinct.
 searches all retained HTTPS GitHub history with explicit all-time and result-limit
 parameters. It is not restricted to recent visits, the default 100 results, or open
 tabs. Deleted history and private browsing are unavailable. GitHub profiles and
-global routes such as settings, organizations, enterprises, stars and topics do not become repository
-suggestions. URL extraction identifies candidates; it does not verify whether a
+global routes such as settings, organizations, enterprises, stars, solutions,
+resources and topics do not become repository suggestions. URL extraction
+identifies candidates; it does not verify whether a
 repository still exists or whether you still have access.
 
 Start typing `owner/repository` in **Visited or configured repository**, choose a

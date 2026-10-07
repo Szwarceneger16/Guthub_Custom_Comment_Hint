@@ -69,7 +69,7 @@ const onStorageChanged = (changes, area) => {
 };
 browser.storage.onChanged.addListener(onStorageChanged);
 const initialRevision = configRevision;
-loadConfig(browser).then((value) => { if (configRevision === initialRevision) config = value; schedule(); }).catch(() => { config = undefined; schedule(); });
+loadConfig(browser).then((value) => { if (configRevision === initialRevision) config = value; schedule(); }).catch(() => { if (configRevision === initialRevision) config = undefined; schedule(); });
 
 window.addEventListener('pagehide', (event) => {
   if (event.persisted) { binding?.destroy(); binding = null; return; }

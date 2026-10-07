@@ -19,8 +19,9 @@ machine paths, private-repository markers, contact emails, conversation IDs,
 retired material paths and PNG metadata. Results include counts and finding types;
 matched values are never printed or saved. General byte-pattern checks apply to
 PNGs too, including chunk content and trailing bytes after IEND; metadata detection
-does not skip those checks. Literal-secret checks accept quoted JSON keys as well
-as unquoted assignments. PNG pixel content is reviewed visually.
+does not skip those checks. Literal-secret checks accept quoted and unquoted
+keys and values in JSON, environment and YAML-style assignments, while preserving
+placeholder exclusions. PNG pixel content is reviewed visually.
 
 ```sh
 mise exec -- pnpm audit:privacy --history --packages
@@ -56,8 +57,8 @@ The current review candidate passed these local checks:
 
 | Check | Result |
 | --- | --- |
-| Logic and privacy-rule tests | 29 passed. |
-| Firefox synthetic fixture tests | 49 passed. |
+| Logic and privacy-rule tests | 31 passed. |
+| Firefox synthetic fixture tests | 56 passed. |
 | Intercepted signing checks | 6 passed; no AMO request. |
 | web-ext lint | 0 errors, 0 notices, 1 retained Desktop-only warning. |
 | Extracted-source rebuild | All 15 runtime files match byte for byte. |

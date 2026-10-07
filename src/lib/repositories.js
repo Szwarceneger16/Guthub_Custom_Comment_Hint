@@ -1,5 +1,5 @@
 export const CATALOG_PREFIX = 'repositoryCatalog:';
-const reservedOwners = new Set(['about', 'account', 'apps', 'business', 'codespaces', 'collections', 'contact', 'copilot', 'customer-stories', 'dashboard', 'enterprise', 'enterprises', 'events', 'explore', 'features', 'issues', 'join', 'login', 'logout', 'marketplace', 'new', 'notifications', 'organizations', 'orgs', 'pricing', 'pulls', 'resources', 'search', 'security', 'sessions', 'settings', 'signup', 'site', 'solutions', 'sponsors', 'stars', 'topics', 'trending', 'users']);
+const reservedOwners = new Set(['about', 'account', 'apps', 'business', 'codespaces', 'collections', 'contact', 'copilot', 'customer-stories', 'dashboard', 'education', 'enterprise', 'enterprises', 'events', 'explore', 'features', 'issues', 'join', 'login', 'logout', 'marketplace', 'new', 'notifications', 'organizations', 'orgs', 'pricing', 'pulls', 'readme', 'resources', 'search', 'security', 'sessions', 'settings', 'signup', 'site', 'solutions', 'sponsors', 'stars', 'topics', 'trending', 'users']);
 
 function validRepository(value) {
   return value && typeof value.owner === 'string' && typeof value.repo === 'string'

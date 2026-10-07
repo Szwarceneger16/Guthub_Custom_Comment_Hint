@@ -1,6 +1,62 @@
 import { test, expect } from '@playwright/test';
 import { openOptions, config } from './helpers.js';
 
+const deferDiscardRead=async page=>page.evaluate(()=>{
+  const get=browser.storage.local.get;
+  window.__mock.originalGet=get;
+  browser.storage.local.get=async keys=>{
+    const value=await get(keys);
+    if(keys==='config')await new Promise((resolve,reject)=>window.__mock.finishDiscardRead=fail=>fail?reject(new Error('discard read')):resolve());
+    return value;
+  };
+});
+for(const state of ['dirty','clean']) for(const other of ['valid','invalid','null','removed']) test(`discard in a ${state} tab accepts the newer ${other} storage event over a stale read`,async({page})=>{
+  await openOptions(page);
+  if(state==='dirty')await page.getByLabel('Inserted text',{exact:true}).fill('Local draft');
+  await deferDiscardRead(page);await page.getByRole('button',{name:'Discard changes',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishDiscardRead)).toBe('function');
+  const interim=config();interim.layouts.ci[0].value='Earlier event';
+  const next=other==='valid'?config():other==='invalid'?{version:999}:other==='null'?null:undefined;
+  if(other==='valid')next.layouts.ci[0].value='Latest storage';
+  await page.evaluate(({interim,next})=>{
+    window.__mock.external(interim);window.__mock.external(next);
+    browser.storage.local.get=window.__mock.originalGet;window.__mock.finishDiscardRead(false);
+  },{interim,next});
+  await expect(page.locator('#dirty')).toHaveText('No unsaved changes');
+  if(other==='valid')await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Latest storage');
+  else {
+    await expect(page.locator('#tab-json')).toHaveAttribute('aria-selected','true');
+    await expect(page.locator('#json-editor')).toHaveValue(JSON.stringify(next,null,2)??'');
+    await page.getByRole('button',{name:'Validate',exact:true}).click();
+    await expect(page.locator('#errors')).not.toHaveText('');
+  }
+  expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(next);
+  expect(await page.evaluate(()=>window.__mock.writes)).toBe(0);
+  expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});dispatchEvent(event);return event.defaultPrevented;})).toBe(false);
+});
+for(const outcome of ['resolve','reject'])test(`an edit made during a pending discard supersedes its ${outcome}`,async({page})=>{
+  await openOptions(page);await page.getByLabel('Inserted text',{exact:true}).fill('First draft');
+  await deferDiscardRead(page);await page.getByRole('button',{name:'Discard changes',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishDiscardRead)).toBe('function');
+  const next=config();next.layouts.ci[0].value='Other tab';await page.evaluate(next=>window.__mock.external(next),next);
+  await page.getByLabel('Inserted text',{exact:true}).fill('Later edit');
+  await page.evaluate(async fail=>{browser.storage.local.get=window.__mock.originalGet;window.__mock.finishDiscardRead(fail);await new Promise(resolve=>setTimeout(resolve,0));},outcome==='reject');
+  await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Later edit');await expect(page.locator('#dirty')).toHaveText('Unsaved changes');
+  await expect(page.locator('#status')).toHaveText('');
+  await page.getByRole('button',{name:'Discard changes',exact:true}).click();await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Other tab');
+});
+test('a failed discard read preserves the draft and newer event for a successful retry',async({page})=>{
+  await openOptions(page);await page.getByLabel('Inserted text',{exact:true}).fill('Local draft');
+  await deferDiscardRead(page);await page.getByRole('button',{name:'Discard changes',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishDiscardRead)).toBe('function');
+  const next=config();next.layouts.ci[0].value='Other tab';
+  await page.evaluate(next=>{window.__mock.external(next);browser.storage.local.get=window.__mock.originalGet;window.__mock.finishDiscardRead(true);},next);
+  await expect(page.locator('#status')).toContainText('Could not read local configuration');
+  await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Local draft');await expect(page.locator('#dirty')).toHaveText('Unsaved changes');
+  await page.getByRole('button',{name:'Discard changes',exact:true}).click();await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Other tab');
+  await expect(page.locator('#dirty')).toHaveText('No unsaved changes');
+});
+
 for(const other of ['valid','null','removed'])test(`concurrent saves preserve the local draft and warn about a ${other} competing value`,async({page})=>{
   await openOptions(page);await page.getByLabel('Inserted text',{exact:true}).fill('Local draft');
   await page.evaluate(()=>{
@@ -78,13 +134,13 @@ test('a matching concurrent save leaves no conflict and preserves edits made whi
 
 test('history suggestions include old visits and more than 100 results while preserving the draft',async({page})=>{
   await openOptions(page);await page.getByLabel('Button label',{exact:true}).fill('Unsaved 🧪');
-  await page.evaluate(()=>{window.__mock.historyItems=[...Array.from({length:128},(_,i)=>({url:`https://github.com/Visitors/repo${i}/tree/main`,title:'Not persisted',lastVisitTime:1})),{url:'https://github.com/Legacy/archive/blob/main/file',lastVisitTime:1},{url:'https://github.com/ALICE/REPO/issues/9'},{url:'https://github.com/visitors/REPO0/pull/1'},{url:'https://evil.invalid/test',title:'https://github.com/'},{url:'https://github.com/settings/profile'},{url:'https://github.com/stars/octocat'},{url:'https://github.com/STARS/octocat/lists/review-tools'},{url:'https://github.com/enterprises/demo-enterprise'},{url:'https://github.com/solutions/industry'},{url:'https://github.com/RESOURCES/articles/security'}];});
+  await page.evaluate(()=>{window.__mock.historyItems=[...Array.from({length:128},(_,i)=>({url:`https://github.com/Visitors/repo${i}/tree/main`,title:'Not persisted',lastVisitTime:1})),{url:'https://github.com/Legacy/archive/blob/main/file',lastVisitTime:1},{url:'https://github.com/ALICE/REPO/issues/9'},{url:'https://github.com/visitors/REPO0/pull/1'},{url:'https://evil.invalid/test',title:'https://github.com/'},{url:'https://github.com/settings/profile'},{url:'https://github.com/stars/octocat'},{url:'https://github.com/STARS/octocat/lists/review-tools'},{url:'https://github.com/enterprises/demo-enterprise'},{url:'https://github.com/solutions/industry'},{url:'https://github.com/RESOURCES/articles/security'},{url:'https://github.com/readme/featured'},{url:'https://github.com/EDUCATION/students'}];});
   await page.getByRole('tab',{name:'Assignments',exact:true}).click();
   await page.getByRole('button',{name:'Import GitHub history',exact:true}).click();
   await expect(page.locator('#repository-status')).toContainText('Imported 130 unique repositories');
   await expect(page.locator('#known-repositories option')).toHaveCount(131);
   await expect(page.locator('#known-repositories option[value="Legacy/archive"]')).toHaveCount(1);
-  await expect(page.locator('#known-repositories option[value^="stars/" i], #known-repositories option[value^="enterprises/" i], #known-repositories option[value^="solutions/" i], #known-repositories option[value^="resources/" i]')).toHaveCount(0);
+  await expect(page.locator('#known-repositories option[value^="stars/" i], #known-repositories option[value^="enterprises/" i], #known-repositories option[value^="solutions/" i], #known-repositories option[value^="resources/" i], #known-repositories option[value^="readme/" i], #known-repositories option[value^="education/" i]')).toHaveCount(0);
   expect(await page.evaluate(()=>window.__mock.permissionRequests)).toEqual([{permissions:['history']}]);
   expect(await page.evaluate(()=>window.__mock.historyQueries)).toEqual([{text:'https://github.com/',startTime:0,maxResults:2147483647}]);
   expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(config());

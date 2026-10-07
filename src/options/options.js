@@ -299,10 +299,13 @@ $('discard').addEventListener('click', async () => {
   if (!model || saving) return;
   const ticket=++operation;
   try {
-    const current=await loadConfig(api);
+    const revision=storageRevision;
+    const stored=await loadConfig(api);
     if (disposed || ticket!==operation) return;
+    // Dirty tabs retain notifications in external; clean tabs already load them.
+    const current=revision===storageRevision ? stored : model.external!==null ? model.external.value : model.saved;
     model.reset(current); clearError(); status(); render();
-  } catch { status(t('loadFailed')); }
+  } catch { if (!disposed && ticket===operation) status(t('loadFailed')); }
 });
 api.storage.onChanged.addListener((changes,area) => {
   if (area!=='local') return;

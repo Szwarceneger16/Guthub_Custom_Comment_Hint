@@ -22,6 +22,9 @@ PNGs too, including chunk content and trailing bytes after IEND; metadata detect
 does not skip those checks. Literal-secret checks accept quoted and unquoted
 keys and values in JSON, environment and YAML-style assignments, while preserving
 placeholder exclusions. PNG pixel content is reviewed visually.
+Private-key checks include encrypted PKCS #8 PEM. Isolated audit regressions cover
+worktree files, unreachable Git blobs and ZIP entries; public-key and certificate
+headers remain allowed.
 
 ```sh
 mise exec -- pnpm audit:privacy --history --packages
@@ -57,8 +60,8 @@ The current review candidate passed these local checks:
 
 | Check | Result |
 | --- | --- |
-| Logic and privacy-rule tests | 31 passed. |
-| Firefox synthetic fixture tests | 56 passed. |
+| Logic and privacy-rule tests | 34 passed. |
+| Firefox synthetic fixture tests | 72 passed. |
 | Intercepted signing checks | 6 passed; no AMO request. |
 | web-ext lint | 0 errors, 0 notices, 1 retained Desktop-only warning. |
 | Extracted-source rebuild | All 15 runtime files match byte for byte. |

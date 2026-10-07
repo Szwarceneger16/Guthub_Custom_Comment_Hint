@@ -30,7 +30,7 @@ mise exec -- pnpm check:integrity
 mise exec -- pnpm audit:privacy --history --packages
 ```
 
-The current run passed 31 logic/privacy tests, 56 Firefox fixture tests and six
+The current run passed 34 logic/privacy tests, 72 Firefox fixture tests and six
 intercepted signing checks. Source reproduction matched all 15 runtime files,
 and lint returned zero errors/notices with the
 known Desktop-only warning. Audit scope is summarized in REPOSITORY_PRIVACY.md.
@@ -69,6 +69,21 @@ with those names. Content-script startup tests settle a deferred initial read
 with success or failure after valid, invalid or removal events; the newer event
 always wins and preserves an active toolbar's draft and Undo state. A failure
 without a newer event remains inactive and recovers after a later valid event.
+
+ReadME and Education global routes are excluded across visits, background messages,
+history imports and stored catalogs; ordinary repositories with those names remain
+discoverable. The private-key rule covers encrypted PKCS #8 PEM as well as existing
+private-key formats. Regressions also check PNG trailing bytes and distinguish public
+keys/certificates. An isolated audit confirms rejection in a worktree file, an
+unreachable Git blob and a ZIP entry without exposing the synthetic matched value.
+
+Discard regressions settle a stale read after multiple storage events in both dirty
+and clean tabs, including valid, invalid, null and removed configurations. The latest
+event wins; later user edits supersede pending discard success/failure and failed
+reads preserve the draft for retry. Toolbar tests preserve the same host, text, selection and Undo
+through JSON property reordering and added/changed/removed unknown fields. Changes
+to effective labels, values, modes or button order still rebuild the toolbar and
+use the updated insertion behavior.
 
 Firefox tests cover CRLF, lone CR and mixed line endings in replace/append,
 empty/nonempty Unicode drafts, end-of-text cursor placement, selection restoration,

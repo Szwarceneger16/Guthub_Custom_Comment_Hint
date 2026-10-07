@@ -36,7 +36,7 @@ function reconcile() {
     if (stale && !target.conversationSpecific) target = null;
   }
   if (!buttons.length) target = null;
-  const nextSignature = JSON.stringify([conversation?.key, buttons]);
+  const nextSignature = JSON.stringify([conversation?.key, buttons.map(({label, value, mode}) => [label, value, mode])]);
   if (binding && (!target || target.editor !== binding.editor || target.section !== binding.section || !binding.host.isConnected || nextSignature !== signature)) {
     binding.destroy();
     binding = null;

@@ -54,6 +54,10 @@ Save verifies the configuration in storage after writing. If another settings ta
 wins a concurrent save, the local draft remains available with an unsaved-change
 warning. Save again to replace storage, or Discard changes to load its latest value.
 A failed verification reports that uncertainty rather than a confirmed save.
+Discard also reconciles storage notifications received during its read, including
+invalid or removed values, so an older snapshot cannot become the clean state.
+Edits made while a discard read is pending supersede that read; a failed read
+preserves the draft for retry.
 
 Unknown configuration versions remain available in JSON for correction or export
 through Firefox tools; this version does not automatically migrate them. Unknown
@@ -72,6 +76,8 @@ lone-CR configuration strings remain undoable without rewriting the configuratio
 Undo restores the text and selection before the most recent insertion. It is a
 single step, cleared by manual editing, submission, reset, navigation, or editor
 replacement. Rebuilding a toolbar after button changes also clears its Undo state.
+Only ordered button labels, values and modes affect this rebuild. Reordering JSON
+object properties or changing unknown fields preserves the toolbar and Undo.
 All extension buttons have `type="button"`; publication uses GitHub's own button.
 Insertion and Undo require a trusted browser click, including native keyboard
 activation. Synthetic clicks dispatched by a page do not modify the editor.
@@ -94,8 +100,8 @@ searches all retained HTTPS GitHub history with explicit all-time and result-lim
 parameters. It is not restricted to recent visits, the default 100 results, or open
 tabs. Deleted history and private browsing are unavailable. GitHub profiles and
 global routes such as settings, organizations, enterprises, stars, solutions,
-resources and topics do not become repository suggestions. URL extraction
-identifies candidates; it does not verify whether a
+resources, ReadME, Education and topics do not become repository suggestions.
+URL extraction identifies candidates; it does not verify whether a
 repository still exists or whether you still have access.
 
 Start typing `owner/repository` in **Visited or configured repository**, choose a

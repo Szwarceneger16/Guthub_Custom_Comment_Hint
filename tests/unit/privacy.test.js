@@ -8,6 +8,7 @@ import { privacyFindings, prohibitedPath } from '../../scripts/privacy-rules.js'
 
 const png = readFileSync('src/icons/hint-16.png');
 const token = ['github', 'pat', ''].join('_') + 'A'.repeat(40);
+const encryptedHeader = ['-----BEGIN ', 'ENCRYPTED ', 'PRIVATE KEY-----'].join('');
 function chunk(type, value) {
   const bytes = Buffer.from(value); const header = Buffer.alloc(8);
   header.writeUInt32BE(bytes.length); header.write(type, 4, 'ascii');
@@ -36,6 +37,18 @@ test('public identity, fictional data and original PNGs remain allowed', () => {
   assert.equal(prohibitedPath('docs/' + ['RECOVERED', 'CONVERSATION.md'].join('_')), true);
   assert.equal(prohibitedPath('docs/CONFIGURATION.md'), false);
   assert.deepEqual(privacyFindings(png), []);
+});
+test('private-key headers include encrypted PKCS8 while public keys and certificates remain allowed', () => {
+  for (const kind of ['', 'RSA ', 'EC ', 'DSA ', 'OPENSSH ', 'ENCRYPTED ']) {
+    const header=['-----BEGIN ',kind,'PRIVATE KEY-----'].join('');
+    for (const bytes of [Buffer.from(header),Buffer.concat([png,Buffer.from('\n'+header+'\n')])]) {
+      assert.deepEqual(privacyFindings(bytes),['private-key']);
+      assert.ok(!JSON.stringify(privacyFindings(bytes)).includes(header));
+    }
+  }
+  for (const kind of ['PUBLIC KEY','RSA PUBLIC KEY','CERTIFICATE']) {
+    assert.deepEqual(privacyFindings(Buffer.from(['-----BEGIN ',kind,'-----'].join(''))),[]);
+  }
 });
 test('credential assignments accept optional key/value quotes and preserve placeholder exclusions', () => {
   const keys=[['WEB','EXT','API','KEY'].join('_'),['WEB','EXT','API','SECRET'].join('_'),['pass','word'].join(''),['api','key'].join('_'),['api','secret'].join('_')];
@@ -83,7 +96,10 @@ test('PNG chunk content and malformed chunk sizes cannot bypass byte scanning; m
   assert.deepEqual(privacyFindings(Buffer.concat([signature,Buffer.from('\n'+token+'\n')])), ['github-token']);
 });
 
-test('the privacy audit rejects PNG trailers in files, unreachable Git blobs and release ZIP entries', () => {
+for (const specimen of [
+  {name:'image.png',label:'PNG trailers',value:token,kind:'github-token',bytes:Buffer.concat([png,Buffer.from('\n'+token+'\n')])},
+  {name:'key.pem',label:'encrypted PKCS8 keys',value:encryptedHeader,kind:'private-key',bytes:Buffer.from(encryptedHeader+'\n')},
+]) test(`the privacy audit rejects ${specimen.label} in files, unreachable Git blobs and release ZIP entries`, () => {
   mkdirSync('.cache', {recursive:true}); const directory=mkdtempSync(path.resolve('.cache/privacy-fixture-'));
   // Never let inherited Git overrides redirect synthetic blobs into the project.
   const env=Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
@@ -93,17 +109,17 @@ test('the privacy audit rejects PNG trailers in files, unreachable Git blobs and
     writeFileSync(path.join(directory,'package.json'), '{"type":"module"}');
     writeFileSync(path.join(directory,'.gitignore'), 'artifacts/\n');
     execFileSync('git',['init','--quiet','--template='],{cwd:directory,env});
-    const bytes=Buffer.concat([png,Buffer.from('\n'+token+'\n')]);
-    writeFileSync(path.join(directory,'image.png'),bytes);
+    const {name,bytes,kind,value}=specimen;
+    writeFileSync(path.join(directory,name),bytes);
     const oid=execFileSync('git',['hash-object','-w','--stdin'],{cwd:directory,env,input:bytes,encoding:'utf8'}).trim();
-    writeFileSync(path.join(directory,'artifacts/package.zip'),zipSync({'image.png':bytes}));
+    writeFileSync(path.join(directory,'artifacts/package.zip'),zipSync({[name]:bytes}));
     writeFileSync(path.join(directory,'artifacts/release-report.json'),JSON.stringify({packages:[{path:'artifacts/package.zip'}]}));
     const result=spawnSync(process.execPath,['scripts/privacy-audit.js','--history','--packages'],{cwd:directory,env,encoding:'utf8'});
     assert.equal(result.status,1,result.stderr);
     const report=JSON.parse(readFileSync(path.join(directory,'artifacts/privacy-audit.json'),'utf8'));
-    assert.deepEqual(report.worktree.findings,[{file:'image.png',kinds:['github-token']}]);
-    assert.deepEqual(report.git_objects.findings,[{object:oid,type:'blob',kinds:['github-token']}]);
-    assert.deepEqual(report.packages.findings,[{archive:'package.zip',file:'image.png',kinds:['github-token']}]);
-    assert.ok(!(JSON.stringify(report)+result.stdout+result.stderr).includes(token));
+    assert.deepEqual(report.worktree.findings,[{file:name,kinds:[kind]}]);
+    assert.deepEqual(report.git_objects.findings,[{object:oid,type:'blob',kinds:[kind]}]);
+    assert.deepEqual(report.packages.findings,[{archive:'package.zip',file:name,kinds:[kind]}]);
+    assert.ok(!(JSON.stringify(report)+result.stdout+result.stderr).includes(value));
   } finally { rmSync(directory,{recursive:true,force:true}); }
 });

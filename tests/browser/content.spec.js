@@ -3,6 +3,43 @@ import { openConversation, form, config } from './helpers.js';
 import { readFileSync } from 'node:fs';
 
 const toolbar=page=>page.locator('[data-comment-hint]');
+test('inert configuration fields and JSON property order preserve the toolbar and available Undo',async({page})=>{
+  await openConversation(page);await expect(toolbar(page)).toHaveCount(1);
+  const editor=page.locator('#new_comment_field');await editor.fill('Draft 🧪');await editor.evaluate(node=>node.setSelectionRange(1,4,'backward'));
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  const host=await toolbar(page).elementHandle();const inputs=await page.evaluate(()=>window.inputs);
+  const next=config();const button=next.layouts.ci[0];
+  next.layouts.ci[0]={mode:button.mode,value:button.value,label:button.label};
+  const updates=[structuredClone(next)];
+  next.layouts.ci[0].note='Extra metadata';updates.push(structuredClone(next));
+  next.layouts.ci[0].note='Changed metadata';next.description='Configuration metadata';updates.push(structuredClone(next));
+  delete next.layouts.ci[0].note;updates.push(structuredClone(next));
+  for(const value of updates) {
+    await page.evaluate(async value=>{window.__mock.external(value);await new Promise(resolve=>setTimeout(resolve,0));},value);
+    expect(await host.evaluate(node=>node.isConnected)).toBe(true);await expect(toolbar(page)).toHaveCount(1);
+    await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeEnabled();await expect(editor).toHaveValue('/ci-now');
+    expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd])).toEqual([7,7]);
+    expect(await page.evaluate(()=>window.inputs)).toBe(inputs);
+  }
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(editor).toHaveValue('Draft 🧪');
+  expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual([1,4,'backward']);
+});
+for(const field of ['label','value','mode','order'])test(`effective ${field} changes refresh the toolbar and insertion behavior`,async({page})=>{
+  await openConversation(page);await expect(toolbar(page)).toHaveCount(1);
+  const editor=page.locator('#new_comment_field');await editor.fill('Draft');await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  const host=await toolbar(page).elementHandle();const next=config();
+  if(field==='label')next.layouts.ci[0].label='Renamed CI';
+  if(field==='value')next.layouts.ci[0].value='/new';
+  if(field==='mode')next.layouts.ci[0].mode='append';
+  if(field==='order')next.repositories.Alice.repo.reverse();
+  await page.evaluate(next=>window.__mock.external(next),next);
+  await expect.poll(()=>host.evaluate(node=>node.isConnected)).toBe(false);
+  await expect(toolbar(page)).toHaveCount(1);await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeDisabled();
+  await expect(editor).toHaveValue('/ci-now');
+  await expect(toolbar(page).locator('.action').first()).toHaveText(field==='label'?'Renamed CI':field==='order'?'🤖 Zażółć\nReview':'▶️ CI now');
+  await toolbar(page).locator('.action').first().click();
+  await expect(editor).toHaveValue(field==='value'?'/new':field==='mode'?'/ci-now\n/ci-now':field==='order'?'/ci-now\n@codex review\n🧪':'/ci-now');
+});
 const deferInitialConfigRead=async page=>page.evaluate(()=>{
   const get=browser.storage.local.get;const snapshot=structuredClone(window.__mock.storage.config);
   browser.storage.local.get=keys=>keys==='config'?new Promise((resolve,reject)=>{
@@ -198,7 +235,7 @@ test('repository visits persist without assignments and across SPA navigation ou
   expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(initial);
   await expect(toolbar(page)).toHaveCount(0);
   const messages=await page.evaluate(()=>window.__mock.messages.length);
-  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise','/solutions/industry','/RESOURCES/articles/security']) {
+  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise','/solutions/industry','/RESOURCES/articles/security','/readme/featured','/EDUCATION/students']) {
     await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new Event('popstate'));},path);
     // Wait for the periodic observer as well as the navigation event.
     await page.waitForTimeout(500);

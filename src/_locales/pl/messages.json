@@ -1,0 +1,242 @@
+{
+  "extensionName": {
+    "message": "GitHub Custom Comment Hint"
+  },
+  "extensionDescription": {
+    "message": "Wstawiaj konfigurowalny tekst do komentarzy w PR-ach i Issues na GitHubie."
+  },
+  "settingsTitle": {
+    "message": "Ustawienia Comment Hint"
+  },
+  "settingsIntro": {
+    "message": "Współdziel zestawy przycisków między repozytoriami. Przyciski wstawiają tekst; komentarz wysyłasz na GitHubie."
+  },
+  "layouts": {
+    "message": "Layouty"
+  },
+  "assignments": {
+    "message": "Przypisania"
+  },
+  "json": {
+    "message": "JSON"
+  },
+  "save": {
+    "message": "Zapisz"
+  },
+  "discard": {
+    "message": "Odrzuć zmiany"
+  },
+  "unsaved": {
+    "message": "Niezapisane zmiany"
+  },
+  "savedState": {
+    "message": "Brak niezapisanych zmian"
+  },
+  "saved": {
+    "message": "Konfiguracja zapisana."
+  },
+  "saveFailed": {
+    "message": "Zapis nie powiódł się. Szkic pozostał dostępny; spróbuj ponownie."
+  },
+  "loadFailed": {
+    "message": "Nie udało się odczytać lokalnej konfiguracji. Otwórz ustawienia ponownie."
+  },
+  "externalLoaded": {
+    "message": "Konfiguracja zaktualizowana z lokalnego storage."
+  },
+  "externalPending": {
+    "message": "Konfiguracja zmieniła się w innym miejscu. Zachowano Twój szkic. Zapisz go, aby zastąpić konfigurację, albo odrzuć zmiany, aby wczytać najnowszą."
+  },
+  "invalidStored": {
+    "message": "Zapisana konfiguracja jest niepoprawna lub nieobsługiwana. Nie została nadpisana. Popraw JSON albo zaimportuj poprawny plik."
+  },
+  "operationFailed": {
+    "message": "Operacja nie powiodła się. Konfiguracja została zachowana."
+  },
+  "layout": {
+    "message": "Layout"
+  },
+  "layoutName": {
+    "message": "Identyfikator layoutu"
+  },
+  "addLayout": {
+    "message": "Utwórz layout"
+  },
+  "noLayouts": {
+    "message": "Utwórz layout, aby dodać przyciski."
+  },
+  "rename": {
+    "message": "Zmień nazwę"
+  },
+  "deleteLayout": {
+    "message": "Usuń layout"
+  },
+  "confirmDelete": {
+    "message": "Usunąć layout „$1” i jego przypisania w: $2?"
+  },
+  "buttonNumber": {
+    "message": "Przycisk $1"
+  },
+  "buttonLabel": {
+    "message": "Etykieta przycisku"
+  },
+  "buttonValue": {
+    "message": "Wstawiany tekst"
+  },
+  "mode": {
+    "message": "Tryb wstawiania"
+  },
+  "append": {
+    "message": "Dopisz"
+  },
+  "replace": {
+    "message": "Zastąp"
+  },
+  "up": {
+    "message": "Przesuń w górę"
+  },
+  "down": {
+    "message": "Przesuń w dół"
+  },
+  "removeButton": {
+    "message": "Usuń przycisk"
+  },
+  "addButton": {
+    "message": "Dodaj przycisk"
+  },
+  "newButton": {
+    "message": "Nowy przycisk"
+  },
+  "preview": {
+    "message": "Podgląd"
+  },
+  "noButtons": {
+    "message": "Brak przypisanych przycisków."
+  },
+  "owner": {
+    "message": "Właściciel"
+  },
+  "repository": {
+    "message": "Repozytorium"
+  },
+  "addRepository": {
+    "message": "Dodaj repozytorium"
+  },
+  "assign": {
+    "message": "Przypisz layout"
+  },
+  "unassign": {
+    "message": "Usuń przypisanie"
+  },
+  "removeRepository": {
+    "message": "Usuń repozytorium"
+  },
+  "jsonDocument": {
+    "message": "JSON konfiguracji"
+  },
+  "validate": {
+    "message": "Sprawdź poprawność"
+  },
+  "discardJSON": {
+    "message": "Odrzuć zmiany JSON"
+  },
+  "import": {
+    "message": "Importuj JSON"
+  },
+  "export": {
+    "message": "Eksportuj JSON"
+  },
+  "imported": {
+    "message": "Zaimportowano do szkicu. Zapisz, aby zastosować."
+  },
+  "valid": {
+    "message": "Konfiguracja jest poprawna."
+  },
+  "undo": {
+    "message": "Cofnij"
+  },
+  "error_json": {
+    "message": "Niepoprawny JSON"
+  },
+  "error_encoding": {
+    "message": "Niepoprawne kodowanie UTF-8. Szkic został zachowany."
+  },
+  "error_object": {
+    "message": "Oczekiwano obiektu."
+  },
+  "error_array": {
+    "message": "Oczekiwano tablicy."
+  },
+  "error_version": {
+    "message": "Obsługiwana jest tylko wersja 1 konfiguracji."
+  },
+  "error_name": {
+    "message": "Użyj niepustego, unikalnego identyfikatora layoutu."
+  },
+  "error_string": {
+    "message": "Oczekiwano tekstu."
+  },
+  "error_mode": {
+    "message": "Wybierz append albo replace."
+  },
+  "error_segment": {
+    "message": "Użyj niepustej nazwy z URL, bez spacji, ukośników, query, fragmentu i kodowania procentowego."
+  },
+  "error_collision": {
+    "message": "Nazwy muszą być unikalne bez rozróżniania wielkości liter."
+  },
+  "error_reference": {
+    "message": "Przypisany layout nie istnieje."
+  },
+  "error_duplicate": {
+    "message": "Layout może być przypisany do repozytorium tylko raz."
+  },
+  "repositorySuggestions": {
+    "message": "Podpowiedzi repozytoriów"
+  },
+  "repositorySources": {
+    "message": "Podpowiedzi łączą konfigurację z repozytoriami zapamiętanymi z odwiedzanych stron GitHuba i zaimportowanej historii Firefoksa. Pozostają dostępne po zamknięciu kart. Wybierz repozytorium, dodaj je poniżej, przypisz layouty i zapisz."
+  },
+  "historyAccess": {
+    "message": "Import przeszukuje wszystkie wizyty na GitHubie, które Firefox nadal przechowuje w historii. Firefox poprosi o opcjonalny dostęp do historii przeglądania; lokalnie zapisujemy tylko nazwy właściciel/repozytorium. Zapamiętywanie nowych wizyt nie wymaga tego uprawnienia. Wizyty w oknach prywatnych są pomijane."
+  },
+  "knownRepository": {
+    "message": "Odwiedzone lub skonfigurowane repozytorium"
+  },
+  "useRepository": {
+    "message": "Wybierz repozytorium"
+  },
+  "repositoryCount": {
+    "message": "Liczba podpowiedzi repozytoriów: $1."
+  },
+  "chooseKnownRepository": {
+    "message": "Wybierz właściciela/repozytorium z podpowiedzi lub wpisz je ręcznie poniżej."
+  },
+  "importHistory": {
+    "message": "Importuj historię GitHuba"
+  },
+  "historyImporting": {
+    "message": "Importowanie historii GitHuba…"
+  },
+  "historyImported": {
+    "message": "Zaimportowano unikalne repozytoria z historii: $1. Zachowano szkic konfiguracji."
+  },
+  "historyDenied": {
+    "message": "Nie przyznano dostępu do historii. Repozytoria możesz wpisać ręcznie; zachowano szkic."
+  },
+  "historyFailed": {
+    "message": "Nie udało się zaimportować historii. Zachowano szkic konfiguracji. Spróbuj ponownie."
+  },
+  "clearRepositories": {
+    "message": "Wyczyść zapamiętane repozytoria"
+  },
+  "catalogCleared": {
+    "message": "Wyczyszczono zapamiętane repozytoria. Przypisania w konfiguracji pozostały. Nowe wizyty mogą ponownie dodać podpowiedzi."
+  },
+  "catalogLoadFailed": {
+    "message": "Nie udało się odczytać podpowiedzi repozytoriów. Nadal możesz wpisać repozytoria ręcznie."
+  },
+  "catalogClearFailed": {
+    "message": "Nie udało się wyczyścić zapamiętanych repozytoriów. Zachowano konfigurację."
+  }
+}

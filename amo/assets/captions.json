@@ -1,0 +1,30 @@
+[
+  {
+    "file": "toolbar-light.png",
+    "caption": {
+      "en-US": "Actual hint buttons and Undo in a light local PR-editor demonstration.",
+      "pl": "Przyciski i cofanie w jasnej demonstracji lokalnego edytora PR."
+    }
+  },
+  {
+    "file": "toolbar-dark.png",
+    "caption": {
+      "en-US": "Actual hint buttons and Undo in a dark local PR-editor demonstration.",
+      "pl": "Przyciski i cofanie w ciemnej demonstracji lokalnego edytora PR."
+    }
+  },
+  {
+    "file": "settings-json.png",
+    "caption": {
+      "en-US": "Actual settings UI: edit, validate, import and export a shared configuration draft (demo data).",
+      "pl": "Ustawienia: edycja, walidacja, import i eksport wspólnego szkicu konfiguracji (dane demonstracyjne)."
+    }
+  },
+  {
+    "file": "settings-assignments-pl.png",
+    "caption": {
+      "en-US": "Polish settings: ordered layout assignments, grid preview and optional GitHub history import (demo data).",
+      "pl": "Przypisania layoutów, podgląd siatki i opcjonalny import historii GitHuba (dane demonstracyjne)."
+    }
+  }
+]

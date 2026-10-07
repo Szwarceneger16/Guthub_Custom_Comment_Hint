@@ -11,7 +11,8 @@ export class Draft {
     this.external = null;
   }
   get dirty() {
-    return JSON.stringify(this.draft) !== JSON.stringify(this.saved) || this.raw !== JSON.stringify(this.draft, null, 2);
+    return JSON.stringify(this.draft) !== JSON.stringify(this.saved) || this.raw !== JSON.stringify(this.draft, null, 2)
+      || (this.external !== null && JSON.stringify(this.draft) !== JSON.stringify(this.external.value));
   }
   changed() {
     this.raw = JSON.stringify(this.draft, null, 2);
@@ -37,7 +38,7 @@ export class Draft {
   imported(config) { this.draft = clone(config); this.changed(); }
   export() { return exportConfig(this.view === 'json' ? parseConfig(this.raw) : this.draft); }
   receiveExternal(config) {
-    if (this.dirty) { this.external = clone(config); return false; }
+    if (this.dirty) { this.external = { value: clone(config) }; return false; }
     const view = this.view;
     this.reset(config);
     if (this.lastValid) this.view = view;

@@ -30,8 +30,8 @@ mise exec -- pnpm check:integrity
 mise exec -- pnpm audit:privacy --history --packages
 ```
 
-The current run passed 23 logic/privacy tests, 32 Firefox fixture tests and six
-intercepted signing checks. The Firefox run took 25.6 seconds. Source reproduction
+The current run passed 25 logic/privacy tests, 42 Firefox fixture tests and six
+intercepted signing checks. The Firefox run took 30.6 seconds. Source reproduction
 matched all 15 runtime files, and lint returned zero errors/notices with the
 known Desktop-only warning. Audit scope is summarized in REPOSITORY_PRIVACY.md.
 Detailed generated evidence remains in ignored `artifacts/`: release-report.json,
@@ -43,6 +43,13 @@ Undo and privacy-rule behavior. Firefox fixtures cover main PR/issue editors,
 exclusions, ambiguity, SPA navigation, form replacement, live settings changes,
 text/selection preservation, Write/Preview, themes, geometry, keyboard use and
 settings import/export/failure paths.
+
+Regression tests first reproduced the review findings on the previous PR head.
+They now cover synthetic insertion/Undo refusal, enterprise-account exclusion
+from visits/history/catalog suggestions, concurrent saves (including removed or
+invalid storage, late notifications, stale reads and verification failures), and
+retained generic editors across conversation changes. Real mouse/keyboard
+activation and conversation-specific action recovery remain covered.
 
 Signing checks intercept the PNPM signer subprocess and use dummy credentials.
 They verify both channels, source attachment, no credentials in arguments,

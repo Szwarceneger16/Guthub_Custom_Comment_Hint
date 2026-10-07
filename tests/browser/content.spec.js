@@ -3,6 +3,57 @@ import { openConversation, form, config } from './helpers.js';
 import { readFileSync } from 'node:fs';
 
 const toolbar=page=>page.locator('[data-comment-hint]');
+test('synthetic insertion and undo cannot expose configured values or change text and selection',async({page})=>{
+  await openConversation(page);await expect(toolbar(page)).toHaveCount(1);
+  const editor=page.locator('#new_comment_field');await editor.fill('Private draft');
+  await editor.evaluate(node=>node.setSelectionRange(1,4,'backward'));
+  const before=await page.evaluate(()=>window.inputs);
+  await toolbar(page).evaluate(host=>{
+    for(const button of host.shadowRoot.querySelectorAll('.action')) {
+      button.click();button.dispatchEvent(new MouseEvent('click',{bubbles:true,composed:true}));
+    }
+  });
+  await expect(editor).toHaveValue('Private draft');
+  expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual([1,4,'backward']);
+  expect(await page.evaluate(()=>window.inputs)).toBe(before);
+  await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeDisabled();
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  await toolbar(page).evaluate(host=>{
+    const undo=host.shadowRoot.querySelector('.undo');undo.click();undo.dispatchEvent(new MouseEvent('click',{bubbles:true,composed:true}));
+  });
+  await expect(editor).toHaveValue('/ci-now');
+  await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Undo',exact:true}).focus();await page.keyboard.press('Enter');
+  await expect(editor).toHaveValue('Private draft');
+  expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual([1,4,'backward']);
+});
+
+test('a retained generic editor stays inactive across conversations and settings changes until replacement',async({page})=>{
+  await openConversation(page);await expect(toolbar(page)).toHaveCount(1);
+  const editor=page.locator('#new_comment_field');await editor.fill('Outgoing draft');
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  for(const path of ['/Alice/repo/pull/13','/Alice/repo/issues/13','/Alice/repo/pull/12']) {
+    await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new Event('popstate'));},path);
+    await expect(toolbar(page)).toHaveCount(0);
+    await page.evaluate(next=>window.__mock.external(next),config());await expect(toolbar(page)).toHaveCount(0);
+    await expect(editor).toHaveValue('/ci-now');
+  }
+  await page.evaluate(html=>document.querySelector('form').outerHTML=html,form());
+  await expect(toolbar(page)).toHaveCount(1);await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeDisabled();
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();await expect(editor).toHaveValue('/ci-now');
+});
+
+test('a retained generic editor observed without assignments needs a numbered action for the new conversation',async({page})=>{
+  const initial=config();initial.repositories.Alice.repo=[];
+  await openConversation(page,{initial});await expect.poll(()=>page.evaluate(()=>window.__mock.messages.length)).toBe(1);
+  await page.locator('#new_comment_field').fill('Outgoing draft');
+  await page.evaluate(next=>{
+    history.pushState({},'','/Alice/repo/issues/13');dispatchEvent(new Event('popstate'));window.__mock.external(next);
+  },config());
+  await expect(toolbar(page)).toHaveCount(0);await expect(page.locator('#new_comment_field')).toHaveValue('Outgoing draft');
+  await page.evaluate(()=>document.querySelector('form').action='/Alice/repo/issues/13/comment');
+  await expect(toolbar(page)).toHaveCount(1);await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeDisabled();
+});
 test('GitHub-style main pull comment action mounts all configured buttons above tabs',async({page})=>{
   const initial={version:1,layouts:{ci:[{label:'▶️ CI now',value:'/ci-now',mode:'replace'}],codex:[{label:'🤖 Codex review',value:'@codex review',mode:'replace'},{label:'🤖 Codex security review',value:'@codex security review',mode:'append'}]},repositories:{DemoOrg:{project:['codex','ci'],another:['codex']}}};
   await openConversation(page,{initial,url:'https://github.com/DemoOrg/project/pull/42',body:readFileSync('tests/fixtures/new-comment-pull.html','utf8')});
@@ -21,7 +72,10 @@ test('GitHub-style main pull comment action mounts all configured buttons above 
 test('numbered comment action rejects a stale conversation number, kind or host',async({page})=>{
   await openConversation(page,{body:form({id:'new_comment_form',action:'/Alice/repo/pull/12/comment?sticky=true'})});
   await expect(toolbar(page)).toHaveCount(1);
-  await page.evaluate(()=>{document.querySelector('form').action='/Alice/repo/pull/13/comment';document.querySelector('[data-comment-hint]').shadowRoot.querySelector('.action').click();});
+  await toolbar(page).evaluate(host=>host.shadowRoot.querySelector('.action').addEventListener('click',()=>{
+    document.querySelector('form').action='/Alice/repo/pull/13/comment';
+  },{capture:true,once:true}));
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
   await expect(page.locator('#new_comment_field')).toHaveValue('');
   await expect(toolbar(page)).toHaveCount(0);
   for(const action of ['/Alice/repo/pull/13/comment','/Alice/repo/issues/12/comment','https://evil.invalid/Alice/repo/pull/12/comment']) {
@@ -93,7 +147,10 @@ test('empty assignments unmount without changing text; unknown and read-only edi
 });
 test('route changes invalidate actions immediately, before periodic reconciliation',async({page})=>{
   await openConversation(page);await expect(toolbar(page)).toHaveCount(1);
-  await page.evaluate(()=>{history.pushState({},'','/Bob/repo/issues/3');document.querySelector('[data-comment-hint]').shadowRoot.querySelector('.action').click();});
+  await toolbar(page).evaluate(host=>host.shadowRoot.querySelector('.action').addEventListener('click',()=>{
+    history.pushState({},'','/Bob/repo/issues/3');
+  },{capture:true,once:true}));
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
   await expect(page.locator('#new_comment_field')).toHaveValue('');expect(await page.evaluate(()=>window.submissions)).toBe(0);
 });
 test('SPA repository navigation and form replacement drop old undo and mount once',async({page})=>{
@@ -118,6 +175,8 @@ test('a stale form from another repository is never used during navigation',asyn
   await page.evaluate(()=>history.pushState({},'','/Bob/repo/issues/3'));await expect(toolbar(page)).toHaveCount(0);
   await page.evaluate(()=>document.querySelector('form').action='/Bob/repo/issue_comments');
   await page.evaluate(()=>document.querySelector('form').append(document.createElement('span')));
+  await expect(toolbar(page)).toHaveCount(0);
+  await page.evaluate(()=>document.querySelector('form').action='/Bob/repo/issues/3/comment');
   await expect(toolbar(page)).toHaveCount(1);
 });
 test('exclude existing-comment and code-review editors; ambiguous or unknown forms fail closed',async({page})=>{

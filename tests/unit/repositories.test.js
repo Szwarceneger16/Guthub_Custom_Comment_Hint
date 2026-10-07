@@ -12,6 +12,22 @@ function apiFixture() {
   } } } };
 }
 
+test('enterprise-account routes are excluded from visits, history and existing catalogs', async () => {
+  for (const route of ['enterprises', 'ENTERPRISES']) {
+    for (const path of ['', '/settings', '/people']) {
+      assert.equal(repositoryFromURL(`https://github.com/${route}/demo-enterprise${path}?x=1#anchor`), null);
+    }
+  }
+  const {stored, api} = apiFixture();
+  stored[CATALOG_PREFIX+'enterprises/demo-enterprise'] = {owner:'enterprises',repo:'demo-enterprise'};
+  assert.deepEqual(await loadCatalog(api), []);
+  assert.equal(await rememberRepositories(api, [{owner:'ENTERPRISES',repo:'demo-enterprise'}]), 0);
+  api.permissions = {request:async () => true};
+  api.history = {search:async () => [{url:'https://github.com/enterprises/demo-enterprise/settings'}, {url:'https://github.com/Alice/project'}]};
+  assert.deepEqual(await importHistory(api), {granted:true,count:1});
+  assert.deepEqual(await loadCatalog(api), [{owner:'Alice',repo:'project'}]);
+});
+
 test('repository discovery handles all repository pages and rejects other hosts and global routes', () => {
   for (const path of ['','/tree/main','/blob/main/README.md','/pull/102/files','/issues/2','/settings','/actions']) {
     assert.deepEqual(repositoryFromURL(`https://github.com/Alice/project${path}?x=1#anchor`),{owner:'Alice',repo:'project'});

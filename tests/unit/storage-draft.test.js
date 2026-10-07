@@ -43,3 +43,14 @@ test('unsupported saved configuration is exposed as JSON without a default repla
   const draft=new Draft({version:999});assert.equal(draft.view,'json');assert.equal(draft.lastValid,null);
   assert.equal(draft.dirty,false);assert.equal(draft.discardJSON(),false);
 });
+
+test('a pending external change keeps a reverted draft dirty, including removed or invalid storage',()=>{
+  for (const external of [null, undefined, {version:999}, {...config(),repositories:{}}]) {
+    const original=config();const draft=new Draft(original);
+    draft.draft.layouts.ci[0].value='unsaved';draft.changed();draft.receiveExternal(external);
+    draft.imported(original);
+    assert.equal(draft.dirty,true);
+    draft.reset(external);
+    assert.equal(draft.dirty,false);
+  }
+});

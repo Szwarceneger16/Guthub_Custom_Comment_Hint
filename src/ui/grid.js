@@ -41,7 +41,7 @@ export function createGrid(document, buttons, { onInsert, onUndo, undoLabel = 'U
     label.className = 'label';
     label.textContent = definition.label;
     button.append(label);
-    if (onInsert) button.addEventListener('click', () => onInsert(definition));
+    if (onInsert) button.addEventListener('click', (event) => { if (event.isTrusted) onInsert(definition); });
     else button.disabled = true;
     grid.append(button);
   }
@@ -53,7 +53,7 @@ export function createGrid(document, buttons, { onInsert, onUndo, undoLabel = 'U
     undo.className = 'undo';
     undo.textContent = undoLabel;
     undo.disabled = true;
-    undo.addEventListener('click', onUndo);
+    undo.addEventListener('click', (event) => { if (event.isTrusted) onUndo(event); });
     root.append(undo);
   }
   return { host, setUndoAvailable: (available) => { if (undo) undo.disabled = !available; } };

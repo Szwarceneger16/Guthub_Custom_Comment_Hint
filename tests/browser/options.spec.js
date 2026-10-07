@@ -1,6 +1,81 @@
 import { test, expect } from '@playwright/test';
 import { openOptions, config } from './helpers.js';
 
+for(const other of ['valid','null','removed'])test(`concurrent saves preserve the local draft and warn about a ${other} competing value`,async({page})=>{
+  await openOptions(page);await page.getByLabel('Inserted text',{exact:true}).fill('Local draft');
+  await page.evaluate(()=>{
+    const set=browser.storage.local.set;
+    window.__mock.originalSet=set;
+    browser.storage.local.set=async value=>{await set(value);await new Promise(resolve=>window.__mock.finishWrite=resolve);};
+  });
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishWrite)).toBe('function');
+  const next=other==='null'?null:other==='removed'?undefined:config();if(next)next.layouts.ci[0].value='Other tab';
+  await page.evaluate(next=>{window.__mock.external(next);window.__mock.finishWrite();},next);
+  await expect(page.locator('#save')).toBeEnabled();await expect(page.locator('#status')).toContainText('Your draft was preserved');
+  await expect(page.locator('#dirty')).toHaveText('Unsaved changes');await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Local draft');
+  expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
+  if(other==='valid') {
+    await page.getByRole('button',{name:'Discard changes',exact:true}).click();await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Other tab');
+  } else {
+    await page.evaluate(()=>browser.storage.local.set=window.__mock.originalSet);
+    await page.getByRole('button',{name:'Save',exact:true}).click();
+    await expect(page.locator('#status')).toHaveText('Configuration saved.');await expect(page.locator('#dirty')).toHaveText('No unsaved changes');
+  }
+});
+
+test('concurrent storage changes during save verification supersede a stale read',async({page})=>{
+  await openOptions(page);await page.getByLabel('Inserted text',{exact:true}).fill('Local draft');
+  await page.evaluate(()=>{
+    const get=browser.storage.local.get;
+    browser.storage.local.get=async keys=>{const value=await get(keys);if(keys==='config')await new Promise(resolve=>window.__mock.finishRead=resolve);return value;};
+  });
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishRead)).toBe('function');
+  const next=config();next.layouts.ci[0].value='Latest storage';
+  await page.evaluate(next=>{window.__mock.external(next);window.__mock.finishRead();},next);
+  await expect(page.locator('#status')).toContainText('Your draft was preserved');await expect(page.locator('#dirty')).toHaveText('Unsaved changes');
+  await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Local draft');
+});
+
+test('failed verification preserves the draft and does not report a confirmed save',async({page})=>{
+  await openOptions(page);await page.getByLabel('Inserted text',{exact:true}).fill('Local draft');
+  await page.evaluate(()=>window.__mock.failReads=true);
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.locator('#status')).toContainText('Could not verify');await expect(page.locator('#dirty')).toHaveText('Unsaved changes');
+  await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Local draft');
+  await page.evaluate(()=>window.__mock.failReads=false);await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.locator('#status')).toHaveText('Configuration saved.');await expect(page.locator('#dirty')).toHaveText('No unsaved changes');
+});
+
+test('save verification detects a competing write even before its notification arrives',async({page})=>{
+  await openOptions(page);await page.getByLabel('Inserted text',{exact:true}).fill('Local draft');
+  const next=config();next.layouts.ci[0].value='Other tab';
+  await page.evaluate(next=>{
+    const set=browser.storage.local.set;
+    browser.storage.local.set=async value=>{await set(value);window.__mock.storage.config=structuredClone(next);};
+  },next);
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.locator('#status')).toContainText('Your draft was preserved');await expect(page.locator('#dirty')).toHaveText('Unsaved changes');
+  await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('Local draft');
+});
+
+test('a matching concurrent save leaves no conflict and preserves edits made while saving',async({page})=>{
+  await openOptions(page,config(),'pl');await page.getByLabel('Wstawiany tekst',{exact:true}).fill('Snapshot');
+  await page.evaluate(()=>{
+    const set=browser.storage.local.set;
+    browser.storage.local.set=async value=>{await set(value);await new Promise(resolve=>window.__mock.finishWrite=resolve);};
+  });
+  await page.getByRole('button',{name:'Zapisz',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>typeof window.__mock.finishWrite)).toBe('function');
+  await page.getByLabel('Wstawiany tekst',{exact:true}).fill('Later edit');
+  await page.evaluate(()=>{window.__mock.external(window.__mock.storage.config);window.__mock.finishWrite();});
+  await expect(page.locator('#status')).toHaveText('Konfiguracja zapisana.');await expect(page.locator('#dirty')).toHaveText('Niezapisane zmiany');
+  await expect(page.getByLabel('Wstawiany tekst',{exact:true})).toHaveValue('Later edit');
+  await page.getByRole('button',{name:'Odrzuć zmiany',exact:true}).click();await expect(page.getByLabel('Wstawiany tekst',{exact:true})).toHaveValue('Snapshot');
+  await expect(page.locator('#dirty')).toHaveText('Brak niezapisanych zmian');
+});
+
 test('history suggestions include old visits and more than 100 results while preserving the draft',async({page})=>{
   await openOptions(page);await page.getByLabel('Button label',{exact:true}).fill('Unsaved 🧪');
   await page.evaluate(()=>{window.__mock.historyItems=[...Array.from({length:128},(_,i)=>({url:`https://github.com/Visitors/repo${i}/tree/main`,title:'Not persisted',lastVisitTime:1})),{url:'https://github.com/Legacy/archive/blob/main/file',lastVisitTime:1},{url:'https://github.com/ALICE/REPO/issues/9'},{url:'https://github.com/visitors/REPO0/pull/1'},{url:'https://evil.invalid/test',title:'https://github.com/'},{url:'https://github.com/settings/profile'}];});

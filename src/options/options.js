@@ -280,12 +280,19 @@ $('save').addEventListener('click', async () => {
   try { snapshot=clone(model.view==='json' ? model.applyJSON() : model.draft); const errors=validateConfig(snapshot); if (errors.length) throw new ConfigError(errors); }
   catch (error) { showError(error); return; }
   saving=true; operation++; refreshStatus(); clearError();
+  let written=false;
   try {
     await saveConfig(api,snapshot);
-    model.saved=clone(snapshot);
-    if (model.external && JSON.stringify(model.external)===JSON.stringify(snapshot)) model.external=null;
-    status(t('saved'));
-  } catch { status(t('saveFailed')); }
+    written=true;
+    const revision=storageRevision;
+    const stored=await loadConfig(api);
+    if (disposed) return;
+    // A notification arriving during the read is newer than the read's snapshot.
+    const current=revision===storageRevision ? stored : model.external.value;
+    model.saved=clone(current);
+    model.external=null;
+    status(t(JSON.stringify(current)===JSON.stringify(snapshot) ? 'saved' : 'externalPending'));
+  } catch { status(t(written ? 'saveUnverified' : 'saveFailed')); }
   finally { saving=false; refreshStatus(); }
 });
 $('discard').addEventListener('click', async () => {
@@ -303,7 +310,7 @@ api.storage.onChanged.addListener((changes,area) => {
   if (!own(changes,'config')) return;
   storageRevision++;
   if (!model) return;
-  if (saving) { model.external=clone(changes.config.newValue); return; }
+  if (saving) { model.external={value:clone(changes.config.newValue)}; return; }
   if (model.receiveExternal(changes.config.newValue)) { clearError(); render(); status(t('externalLoaded')); }
   else status(t('externalPending'));
 });

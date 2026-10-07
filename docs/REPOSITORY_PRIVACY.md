@@ -49,16 +49,16 @@ Deleting/recreating a repository or changing visibility requires separate approv
 
 ## Current verification
 
-The cleanup candidate passed these local checks:
+The current review candidate passed these local checks:
 
 | Check | Result |
 | --- | --- |
-| Logic and privacy-rule tests | 23 passed. |
-| Firefox synthetic fixture tests | 32 passed. |
+| Logic and privacy-rule tests | 25 passed. |
+| Firefox synthetic fixture tests | 42 passed. |
 | Intercepted signing checks | 6 passed; no AMO request. |
 | web-ext lint | 0 errors, 0 notices, 1 retained Desktop-only warning. |
 | Extracted-source rebuild | All 15 runtime files match byte for byte. |
-| Current nonignored files | 75 checked, 0 audit findings. |
+| Current nonignored files | 76 checked, 0 audit findings. |
 | Prepared release ZIPs | All three archives checked, 0 audit findings. |
 | Runtime/configuration/locale integrity | Passed. |
 

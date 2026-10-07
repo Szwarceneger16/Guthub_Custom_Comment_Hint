@@ -21,7 +21,7 @@ export function findMainEditor(document, conversation) {
     if (form.querySelector('input[name="_method"][value="patch"], input[name="_method"][value="put"]')) continue;
     const section = editor.closest('.js-previewable-comment-form, [data-testid="markdown-editor"]');
     if (!section || !form.contains(section)) continue;
-    candidates.push({ editor, form, section });
+    candidates.push({ editor, form, section, conversationSpecific: action.pathname.toLowerCase() !== expectedAction });
   }
   return candidates.length === 1 ? candidates[0] : null;
 }

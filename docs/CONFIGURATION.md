@@ -50,6 +50,11 @@ Invalid imports, failed writes and external storage changes preserve an unsaved
 draft. Closing the settings tab with unsaved changes requests browser confirmation;
 the draft is not persisted across closing/reopening the tab.
 
+Save verifies the configuration in storage after writing. If another settings tab
+wins a concurrent save, the local draft remains available with an unsaved-change
+warning. Save again to replace storage, or Discard changes to load its latest value.
+A failed verification reports that uncertainty rather than a confirmed save.
+
 Unknown configuration versions remain available in JSON for correction or export
 through Firefox tools; this version does not automatically migrate them. Unknown
 extra JSON fields are retained and have no operational effect. Use JSON to change
@@ -66,6 +71,10 @@ Undo restores the text and selection before the most recent insertion. It is a
 single step, cleared by manual editing, submission, reset, navigation, or editor
 replacement. Rebuilding a toolbar after button changes also clears its Undo state.
 All extension buttons have `type="button"`; publication uses GitHub's own button.
+Insertion and Undo require a trusted browser click, including native keyboard
+activation. Synthetic clicks dispatched by a page do not modify the editor.
+After conversation navigation, a retained editor with a generic form action
+stays inactive until it is replaced or has an action naming the current conversation.
 
 ## Repository suggestions (0.1.1)
 
@@ -80,7 +89,7 @@ are deduplicated without regard to case; different owners remain distinct.
 searches all retained HTTPS GitHub history with explicit all-time and result-limit
 parameters. It is not restricted to recent visits, the default 100 results, or open
 tabs. Deleted history and private browsing are unavailable. GitHub profiles and
-global routes such as settings, organizations and topics do not become repository
+global routes such as settings, organizations, enterprises and topics do not become repository
 suggestions. URL extraction identifies candidates; it does not verify whether a
 repository still exists or whether you still have access.
 

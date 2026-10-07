@@ -54,7 +54,7 @@ The current review candidate passed these local checks:
 | Check | Result |
 | --- | --- |
 | Logic and privacy-rule tests | 25 passed. |
-| Firefox synthetic fixture tests | 42 passed. |
+| Firefox synthetic fixture tests | 45 passed. |
 | Intercepted signing checks | 6 passed; no AMO request. |
 | web-ext lint | 0 errors, 0 notices, 1 retained Desktop-only warning. |
 | Extracted-source rebuild | All 15 runtime files match byte for byte. |

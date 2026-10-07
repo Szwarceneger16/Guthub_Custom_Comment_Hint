@@ -40,10 +40,12 @@ export function attachToolbar(document, target, buttons, undoLabel, conversation
     const setter = Object.getOwnPropertyDescriptor(document.defaultView.HTMLTextAreaElement.prototype, 'value').set;
     writing = true;
     try {
-      setter.call(editor, value);
+      // GitHub installs validity listeners on focus, before native text changes.
       editor.focus();
+      setter.call(editor, value);
       editor.setSelectionRange(start, end, direction);
-      editor.dispatchEvent(new document.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertText', data: null }));
+      editor.dispatchEvent(new document.defaultView.InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: null }));
+      editor.dispatchEvent(new document.defaultView.Event('change', { bubbles: true }));
     } finally { writing = false; }
   }
   const grid = createGrid(document, buttons, {

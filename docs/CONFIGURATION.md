@@ -73,6 +73,8 @@ replacement. Rebuilding a toolbar after button changes also clears its Undo stat
 All extension buttons have `type="button"`; publication uses GitHub's own button.
 Insertion and Undo require a trusted browser click, including native keyboard
 activation. Synthetic clicks dispatched by a page do not modify the editor.
+Insertion and Undo notify GitHub to refresh form validity. Comment becomes
+available when the form is valid; restoring empty text makes it unavailable again.
 After conversation navigation, a retained editor with a generic form action
 stays inactive until it is replaced or has an action naming the current conversation.
 

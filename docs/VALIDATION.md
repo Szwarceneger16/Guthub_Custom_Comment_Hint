@@ -30,9 +30,9 @@ mise exec -- pnpm check:integrity
 mise exec -- pnpm audit:privacy --history --packages
 ```
 
-The current run passed 25 logic/privacy tests, 42 Firefox fixture tests and six
-intercepted signing checks. The Firefox run took 30.6 seconds. Source reproduction
-matched all 15 runtime files, and lint returned zero errors/notices with the
+The current run passed 25 logic/privacy tests, 45 Firefox fixture tests and six
+intercepted signing checks. Source reproduction matched all 15 runtime files,
+and lint returned zero errors/notices with the
 known Desktop-only warning. Audit scope is summarized in REPOSITORY_PRIVACY.md.
 Detailed generated evidence remains in ignored `artifacts/`: release-report.json,
 lint-report.json, privacy-audit.json and versioned SHA256SUMS.
@@ -50,6 +50,17 @@ from visits/history/catalog suggestions, concurrent saves (including removed or
 invalid storage, late notifications, stale reads and verification failures), and
 retained generic editors across conversation changes. Real mouse/keyboard
 activation and conversation-specific action recovery remain covered.
+
+The main-comment fixture models GitHub's required textarea, disabled submit
+control and validity listener installed on focus. Its behavior follows the
+[public GitHub validation bundle](https://github.githubassets.com/assets/0pd-c46d8dfae89c2b64.js):
+input updates depend on a validity transition, while bubbling change refreshes
+the form. Regression tests reproduced the disabled Comment button before the fix
+on both PRs and issues, as well as stale submit state after Undo. They now check
+replace/append, keyboard activation, insertion from Preview, empty replacement,
+Undo and preservation of other invalid fields. Focus precedes mutation; input
+and change are dispatched while extension writes are excluded from manual-edit
+Undo invalidation. The extension never changes the submit button itself.
 
 Signing checks intercept the PNPM signer subprocess and use dummy credentials.
 They verify both channels, source attachment, no credentials in arguments,

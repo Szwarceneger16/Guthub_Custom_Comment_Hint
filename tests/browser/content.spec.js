@@ -3,6 +3,41 @@ import { openConversation, form, config } from './helpers.js';
 import { readFileSync } from 'node:fs';
 
 const toolbar=page=>page.locator('[data-comment-hint]');
+for(const kind of ['pull','issues'])test(`insertion and Undo refresh the Comment button's form validity on ${kind}`,async({page})=>{
+  const initial=config();initial.layouts.ci=[
+    {label:'Replace',value:'/review',mode:'replace'},
+    {label:'Append',value:'/security',mode:'append'},
+    {label:'Clear',value:'',mode:'replace'},
+  ];initial.repositories.Alice.repo=['ci'];
+  const body=readFileSync('tests/fixtures/new-comment-pull.html','utf8').replace('/DemoOrg/project/pull/42/comment?sticky=true',`/Alice/repo/${kind}/12/comment`);
+  await openConversation(page,{initial,url:`https://github.com/Alice/repo/${kind}/12`,body});
+  const submit=page.getByRole('button',{name:'Comment',exact:true});const editor=page.locator('#new_comment_field');
+  await expect(toolbar(page)).toHaveCount(1);await expect(submit).toBeDisabled();
+  await page.getByRole('button',{name:'Replace',exact:true}).focus();await page.keyboard.press('Enter');
+  await expect(editor).toHaveValue('/review');await expect(submit).toBeEnabled();
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(editor).toHaveValue('');await expect(submit).toBeDisabled();
+  await page.getByRole('button',{name:'Preview',exact:true}).click();
+  await page.getByRole('button',{name:'Append',exact:true}).click();await expect(submit).toBeEnabled();
+  await page.getByRole('button',{name:'Write',exact:true}).click();await expect(editor).toHaveValue('/security');
+  await page.getByRole('button',{name:'Clear',exact:true}).click();await expect(editor).toHaveValue('');await expect(submit).toBeDisabled();
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(editor).toHaveValue('/security');await expect(submit).toBeEnabled();
+  expect(await page.evaluate(()=>window.submissions)).toBe(0);
+});
+
+test('insertion preserves other GitHub form constraints instead of enabling submission directly',async({page})=>{
+  const body=readFileSync('tests/fixtures/new-comment-pull.html','utf8')
+    .replace('/DemoOrg/project/pull/42/comment?sticky=true','/Alice/repo/pull/12/comment')
+    .replace('<fieldset','<input required aria-label="Required field"><fieldset');
+  await openConversation(page,{body});await expect(toolbar(page)).toHaveCount(1);
+  const submit=page.getByRole('button',{name:'Comment',exact:true});
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  await expect(page.locator('#new_comment_field')).toHaveValue('/ci-now');await expect(submit).toBeDisabled();
+  await page.getByLabel('Required field',{exact:true}).fill('valid');await page.keyboard.press('Tab');
+  await expect(submit).toBeEnabled();
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(submit).toBeDisabled();
+  expect(await page.evaluate(()=>window.submissions)).toBe(0);
+});
+
 test('synthetic insertion and undo cannot expose configured values or change text and selection',async({page})=>{
   await openConversation(page);await expect(toolbar(page)).toHaveCount(1);
   const editor=page.locator('#new_comment_field');await editor.fill('Private draft');

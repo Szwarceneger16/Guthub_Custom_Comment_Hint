@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "layouts": {
+    "ci": [
+      {
+        "label": "▶️ CI now",
+        "value": "/ci-now",
+        "mode": "replace"
+      }
+    ],
+    "codex": [
+      {
+        "label": "🤖 Codex review",
+        "value": "@codex review",
+        "mode": "replace"
+      }
+    ]
+  },
+  "repositories": {
+    "Alice": {
+      "one": [
+        "ci",
+        "codex"
+      ],
+      "two": [
+        "codex"
+      ]
+    }
+  }
+}

@@ -1,0 +1,242 @@
+{
+  "extensionName": {
+    "message": "GitHub Custom Comment Hint"
+  },
+  "extensionDescription": {
+    "message": "Insert configurable text into GitHub pull request and issue comments."
+  },
+  "settingsTitle": {
+    "message": "Comment Hint settings"
+  },
+  "settingsIntro": {
+    "message": "Share button layouts across repositories. Buttons insert text; you submit the comment on GitHub."
+  },
+  "layouts": {
+    "message": "Layouts"
+  },
+  "assignments": {
+    "message": "Assignments"
+  },
+  "json": {
+    "message": "JSON"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "discard": {
+    "message": "Discard changes"
+  },
+  "unsaved": {
+    "message": "Unsaved changes"
+  },
+  "savedState": {
+    "message": "No unsaved changes"
+  },
+  "saved": {
+    "message": "Configuration saved."
+  },
+  "saveFailed": {
+    "message": "Save failed. Your draft is still available; try again."
+  },
+  "loadFailed": {
+    "message": "Could not read local configuration. Reopen settings to retry."
+  },
+  "externalLoaded": {
+    "message": "Configuration updated from local storage."
+  },
+  "externalPending": {
+    "message": "Configuration changed elsewhere. Your draft was preserved. Save to replace the stored configuration or discard to load the latest one."
+  },
+  "invalidStored": {
+    "message": "Stored configuration is invalid or unsupported. It has not been overwritten. Correct the JSON or import a valid file."
+  },
+  "operationFailed": {
+    "message": "Operation failed. Your configuration was preserved."
+  },
+  "layout": {
+    "message": "Layout"
+  },
+  "layoutName": {
+    "message": "Layout ID"
+  },
+  "addLayout": {
+    "message": "Create layout"
+  },
+  "noLayouts": {
+    "message": "Create a layout to add buttons."
+  },
+  "rename": {
+    "message": "Rename"
+  },
+  "deleteLayout": {
+    "message": "Delete layout"
+  },
+  "confirmDelete": {
+    "message": "Delete layout \"$1\" and remove its assignments from: $2?"
+  },
+  "buttonNumber": {
+    "message": "Button $1"
+  },
+  "buttonLabel": {
+    "message": "Button label"
+  },
+  "buttonValue": {
+    "message": "Inserted text"
+  },
+  "mode": {
+    "message": "Insertion mode"
+  },
+  "append": {
+    "message": "Append"
+  },
+  "replace": {
+    "message": "Replace"
+  },
+  "up": {
+    "message": "Move up"
+  },
+  "down": {
+    "message": "Move down"
+  },
+  "removeButton": {
+    "message": "Remove button"
+  },
+  "addButton": {
+    "message": "Add button"
+  },
+  "newButton": {
+    "message": "New button"
+  },
+  "preview": {
+    "message": "Preview"
+  },
+  "noButtons": {
+    "message": "No buttons assigned."
+  },
+  "owner": {
+    "message": "Owner"
+  },
+  "repository": {
+    "message": "Repository"
+  },
+  "addRepository": {
+    "message": "Add repository"
+  },
+  "assign": {
+    "message": "Assign layout"
+  },
+  "unassign": {
+    "message": "Unassign"
+  },
+  "removeRepository": {
+    "message": "Remove repository"
+  },
+  "jsonDocument": {
+    "message": "Configuration JSON"
+  },
+  "validate": {
+    "message": "Validate"
+  },
+  "discardJSON": {
+    "message": "Discard JSON edits"
+  },
+  "import": {
+    "message": "Import JSON"
+  },
+  "export": {
+    "message": "Export JSON"
+  },
+  "imported": {
+    "message": "Imported into the draft. Save to apply."
+  },
+  "valid": {
+    "message": "Configuration is valid."
+  },
+  "undo": {
+    "message": "Undo"
+  },
+  "error_json": {
+    "message": "Invalid JSON"
+  },
+  "error_encoding": {
+    "message": "Invalid UTF-8 encoding. The draft was preserved."
+  },
+  "error_object": {
+    "message": "Expected an object."
+  },
+  "error_array": {
+    "message": "Expected an array."
+  },
+  "error_version": {
+    "message": "Only configuration version 1 is supported."
+  },
+  "error_name": {
+    "message": "Use a nonempty, unique layout ID."
+  },
+  "error_string": {
+    "message": "Expected text."
+  },
+  "error_mode": {
+    "message": "Choose append or replace."
+  },
+  "error_segment": {
+    "message": "Use a nonempty URL name without whitespace, slashes, query, fragment, or percent escapes."
+  },
+  "error_collision": {
+    "message": "Names must be unique ignoring letter case."
+  },
+  "error_reference": {
+    "message": "The assigned layout does not exist."
+  },
+  "error_duplicate": {
+    "message": "A layout may be assigned only once per repository."
+  },
+  "repositorySuggestions": {
+    "message": "Repository suggestions"
+  },
+  "repositorySources": {
+    "message": "Suggestions combine your configuration with repositories remembered from visited GitHub pages and imported Firefox history. They remain available after tabs close. Choose one, add it below, then assign layouts and Save."
+  },
+  "historyAccess": {
+    "message": "Import searches all GitHub visits still kept in Firefox history. Firefox asks for optional access to browsing history; only owner/repository names are stored locally. No permission is needed to remember new GitHub visits. Private-window visits are excluded."
+  },
+  "knownRepository": {
+    "message": "Visited or configured repository"
+  },
+  "useRepository": {
+    "message": "Use repository"
+  },
+  "repositoryCount": {
+    "message": "$1 repository suggestions."
+  },
+  "chooseKnownRepository": {
+    "message": "Choose an owner/repository from the suggestions or enter it manually below."
+  },
+  "importHistory": {
+    "message": "Import GitHub history"
+  },
+  "historyImporting": {
+    "message": "Importing GitHub history…"
+  },
+  "historyImported": {
+    "message": "Imported $1 unique repositories from history. Your configuration draft was preserved."
+  },
+  "historyDenied": {
+    "message": "History access was not granted. You can enter repositories manually; your draft was preserved."
+  },
+  "historyFailed": {
+    "message": "Could not import history. Your configuration draft was preserved. Try again."
+  },
+  "clearRepositories": {
+    "message": "Clear remembered repositories"
+  },
+  "catalogCleared": {
+    "message": "Remembered repositories cleared. Configured assignments remain. New visits can add suggestions again."
+  },
+  "catalogLoadFailed": {
+    "message": "Could not read repository suggestions. You can still enter repositories manually."
+  },
+  "catalogClearFailed": {
+    "message": "Could not clear remembered repositories. Your configuration was preserved."
+  }
+}

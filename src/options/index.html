@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub Custom Comment Hint</title>
+  <link rel="stylesheet" href="options.css">
+  <script src="options.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><h1 data-i18n="extensionName"></h1><p data-i18n="settingsIntro"></p></header>
+    <div class="tabs" role="tablist" aria-label="Settings" id="tabs">
+      <button type="button" role="tab" data-view="layouts" data-i18n="layouts" id="tab-layouts" aria-controls="panel"></button>
+      <button type="button" role="tab" data-view="assignments" data-i18n="assignments" id="tab-assignments" aria-controls="panel"></button>
+      <button type="button" role="tab" data-view="json" data-i18n="json" id="tab-json" aria-controls="panel"></button>
+    </div>
+    <section id="panel" role="tabpanel"></section>
+    <ul id="errors" role="alert" hidden></ul>
+    <p id="status" role="status" aria-live="polite"></p>
+    <footer>
+      <button type="button" id="save" class="primary" data-i18n="save"></button>
+      <button type="button" id="discard" data-i18n="discard"></button>
+      <span id="dirty"></span>
+    </footer>
+  </main>
+</body>
+</html>

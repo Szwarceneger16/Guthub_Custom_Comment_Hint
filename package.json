@@ -1,0 +1,40 @@
+{
+  "name": "github-custom-comment-hint",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.9.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test --test-isolation=none tests/unit/*.test.js",
+    "prepare:extension": "node scripts/build.js",
+    "test:browser": "pnpm prepare:extension && node scripts/browser-tests.js",
+    "browser:install": "node scripts/browser-tests.js --install",
+    "lint": "pnpm prepare:extension && node scripts/web-ext.js lint",
+    "build": "pnpm prepare:extension && node scripts/web-ext.js build",
+    "check:integrity": "node scripts/check-integrity.js",
+    "source:check": "node scripts/check-source.js",
+    "assets:amo": "node scripts/publication-assets.js",
+    "release:prepare": "pnpm audit:privacy && pnpm lint && pnpm build && node scripts/release.js && pnpm audit:privacy --packages",
+    "release:verify": "node scripts/verify-release.js",
+    "sign:listed": "node scripts/sign.js listed",
+    "sign:unlisted": "node scripts/sign.js unlisted",
+    "release:check-signing": "node --test tests/release/*.test.js",
+    "audit:privacy": "node scripts/privacy-audit.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "esbuild": "0.28.2",
+    "fflate": "0.8.3",
+    "web-ext": "10.0.0"
+  },
+  "description": "Configurable text-insertion buttons for GitHub pull request and issue comments in Firefox.",
+  "license": "MIT",
+  "author": "Szwarceneger16",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Szwarceneger16/Guthub_Custom_Comment_Hint.git"
+  }
+}

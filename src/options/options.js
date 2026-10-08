@@ -15,6 +15,7 @@ let saving = false;
 let operation = 0;
 let disposed = false;
 let storageRevision = 0;
+let startupConfig = null;
 let catalog = [];
 let catalogRevision = 0;
 let discoveryBusy = false;
@@ -280,30 +281,40 @@ $('save').addEventListener('click', async () => {
   try { snapshot=clone(model.view==='json' ? model.applyJSON() : model.draft); const errors=validateConfig(snapshot); if (errors.length) throw new ConfigError(errors); }
   catch (error) { showError(error); return; }
   saving=true; operation++; refreshStatus(); clearError();
+  let written=false;
   try {
     await saveConfig(api,snapshot);
-    model.saved=clone(snapshot);
-    if (model.external && JSON.stringify(model.external)===JSON.stringify(snapshot)) model.external=null;
-    status(t('saved'));
-  } catch { status(t('saveFailed')); }
+    written=true;
+    const revision=storageRevision;
+    const stored=await loadConfig(api);
+    if (disposed) return;
+    // A notification arriving during the read is newer than the read's snapshot.
+    const current=revision===storageRevision ? stored : model.external.value;
+    model.saved=clone(current);
+    model.external=null;
+    status(t(JSON.stringify(current)===JSON.stringify(snapshot) ? 'saved' : 'externalPending'));
+  } catch { status(t(written ? 'saveUnverified' : 'saveFailed')); }
   finally { saving=false; refreshStatus(); }
 });
 $('discard').addEventListener('click', async () => {
   if (!model || saving) return;
   const ticket=++operation;
   try {
-    const current=await loadConfig(api);
+    const revision=storageRevision;
+    const stored=await loadConfig(api);
     if (disposed || ticket!==operation) return;
+    // Dirty tabs retain notifications in external; clean tabs already load them.
+    const current=revision===storageRevision ? stored : model.external!==null ? model.external.value : model.saved;
     model.reset(current); clearError(); status(); render();
-  } catch { status(t('loadFailed')); }
+  } catch { if (!disposed && ticket===operation) status(t('loadFailed')); }
 });
 api.storage.onChanged.addListener((changes,area) => {
   if (area!=='local') return;
   if (Object.keys(changes).some(key => key.startsWith(CATALOG_PREFIX))) refreshCatalog();
   if (!own(changes,'config')) return;
   storageRevision++;
-  if (!model) return;
-  if (saving) { model.external=clone(changes.config.newValue); return; }
+  if (!model) { startupConfig={value:clone(changes.config.newValue)}; return; }
+  if (saving) { model.external={value:clone(changes.config.newValue)}; return; }
   if (model.receiveExternal(changes.config.newValue)) { clearError(); render(); status(t('externalLoaded')); }
   else status(t('externalPending'));
 });
@@ -313,13 +324,16 @@ window.addEventListener('pagehide', () => { disposed=true; operation++; });
 async function start() {
   $('save').disabled=true; $('discard').disabled=true;
   try {
-    const revision=storageRevision;
-    let saved=await initializeConfig(api);
-    if (revision!==storageRevision) saved=await loadConfig(api);
+    let saved;
+    try { saved=await initializeConfig(api,()=>startupConfig===null); }
+    catch (error) { if (startupConfig===null) throw error; }
     if (disposed) return;
+    // Keep the latest notification, including removal, instead of starting another read.
+    if (startupConfig!==null) saved=startupConfig.value;
+    startupConfig=null;
     model=new Draft(saved); render(); $('discard').disabled=false;
     refreshCatalog();
     if (validateConfig(saved).length) { showError(new ConfigError(validateConfig(saved))); status(t('invalidStored')); }
-  } catch { status(t('loadFailed')); }
+  } catch { if (!disposed) status(t('loadFailed')); }
 }
 start();

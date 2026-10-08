@@ -22,6 +22,12 @@ test('initialize only missing storage; updates and invalid stored values are pre
     if(Object.hasOwn(stored,'config')) assert.equal(result,stored.config);
   }
 });
+test('a newer startup event prevents initialization from a stale missing-key snapshot',async()=>{
+  let finish;let current=true;const writes=[];
+  const api={storage:{local:{get:()=>new Promise(resolve=>finish=resolve),set:async value=>writes.push(value)}}};
+  const pending=initializeConfig(api,()=>current);
+  current=false;finish({});assert.equal(await pending,undefined);assert.deepEqual(writes,[]);
+});
 test('invalid configuration never reaches storage and write failures propagate',async()=>{
   let writes=0;const api={storage:{local:{set:async()=>{writes++;throw new Error('quota');}}}};
   await assert.rejects(saveConfig(api,{version:2}));assert.equal(writes,0);
@@ -42,4 +48,15 @@ test('external storage changes preserve dirty drafts and reload clean ones',()=>
 test('unsupported saved configuration is exposed as JSON without a default replacement',()=>{
   const draft=new Draft({version:999});assert.equal(draft.view,'json');assert.equal(draft.lastValid,null);
   assert.equal(draft.dirty,false);assert.equal(draft.discardJSON(),false);
+});
+
+test('a pending external change keeps a reverted draft dirty, including removed or invalid storage',()=>{
+  for (const external of [null, undefined, {version:999}, {...config(),repositories:{}}]) {
+    const original=config();const draft=new Draft(original);
+    draft.draft.layouts.ci[0].value='unsaved';draft.changed();draft.receiveExternal(external);
+    draft.imported(original);
+    assert.equal(draft.dirty,true);
+    draft.reset(external);
+    assert.equal(draft.dirty,false);
+  }
 });

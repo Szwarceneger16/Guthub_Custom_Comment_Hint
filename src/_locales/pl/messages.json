@@ -38,6 +38,9 @@
   "saveFailed": {
     "message": "Zapis nie powiódł się. Szkic pozostał dostępny; spróbuj ponownie."
   },
+  "saveUnverified": {
+    "message": "Nie udało się sprawdzić konfiguracji po zapisie. Szkic pozostał dostępny; zapisz ponownie albo odrzuć zmiany, aby wczytać storage."
+  },
   "loadFailed": {
     "message": "Nie udało się odczytać lokalnej konfiguracji. Otwórz ustawienia ponownie."
   },

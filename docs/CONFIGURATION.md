@@ -50,10 +50,22 @@ Invalid imports, failed writes and external storage changes preserve an unsaved
 draft. Closing the settings tab with unsaved changes requests browser confirmation;
 the draft is not persisted across closing/reopening the tab.
 
+Save verifies the configuration in storage after writing. If another settings tab
+wins a concurrent save, the local draft remains available with an unsaved-change
+warning. Save again to replace storage, or Discard changes to load its latest value.
+A failed verification reports that uncertainty rather than a confirmed save.
+Discard also reconciles storage notifications received during its read, including
+invalid or removed values, so an older snapshot cannot become the clean state.
+Edits made while a discard read is pending supersede that read; a failed read
+preserves the draft for retry.
+
 Unknown configuration versions remain available in JSON for correction or export
 through Firefox tools; this version does not automatically migrate them. Unknown
 extra JSON fields are retained and have no operational effect. Use JSON to change
 an existing owner/repository name, or remove and recreate its assignment in forms.
+While settings start, the newest storage notification takes precedence over a
+pending read, including read failure or a missing-key snapshot. Invalid, null and
+removed values remain available in JSON; defaults do not overwrite a newer event.
 
 ## Comment behavior
 
@@ -62,16 +74,25 @@ newline when the existing text is nonempty and does not already end in a newline
 The configured value is not trimmed. Firefox's textarea API represents line endings
 as LF; configuration import/export preserves the original string values.
 
+Undo compares against the textarea's actual LF-normalized value, so CRLF and
+lone-CR configuration strings remain undoable without rewriting the configuration.
 Undo restores the text and selection before the most recent insertion. It is a
 single step, cleared by manual editing, submission, reset, navigation, or editor
 replacement. Rebuilding a toolbar after button changes also clears its Undo state.
+Only ordered button labels, values and modes affect this rebuild. Reordering JSON
+object properties or changing unknown fields preserves the toolbar and Undo.
 All extension buttons have `type="button"`; publication uses GitHub's own button.
+Insertion and Undo require a trusted browser click, including native keyboard
+activation. Synthetic clicks dispatched by a page do not modify the editor.
+Insertion and Undo notify GitHub to refresh form validity. Comment becomes
+available when the form is valid; restoring empty text makes it unavailable again.
+After conversation navigation, a retained editor with a generic form action
+stays inactive until it is replaced or has an action naming the current conversation.
 
-## Repository suggestions (0.1.1)
+## Repository suggestions
 
-The original assignment list came exclusively from `repositories` in the JSON,
-not Firefox history or open tabs. In 0.1.1, Assignments adds suggestions combining
-that configuration with a separate local repository catalog. It records repository
+Assignments combines `repositories` in the JSON with a separate local repository
+catalog to provide suggestions. The catalog records repository
 URLs encountered by the content script, including root, tree/blob, actions and other
 repository pages, even when they have no button assignment. Owner/repository pairs
 are deduplicated without regard to case; different owners remain distinct.
@@ -80,8 +101,10 @@ are deduplicated without regard to case; different owners remain distinct.
 searches all retained HTTPS GitHub history with explicit all-time and result-limit
 parameters. It is not restricted to recent visits, the default 100 results, or open
 tabs. Deleted history and private browsing are unavailable. GitHub profiles and
-global routes such as settings, organizations and topics do not become repository
-suggestions. URL extraction identifies candidates; it does not verify whether a
+global routes such as settings, organizations, enterprises, stars, solutions,
+resources, ReadME, Education, Git Guides, MCP Registry, Partners, Trust Center,
+Why GitHub and topics do not become repository suggestions.
+URL extraction identifies candidates; it does not verify whether a
 repository still exists or whether you still have access.
 
 Start typing `owner/repository` in **Visited or configured repository**, choose a
@@ -90,4 +113,8 @@ fields. **Add repository** creates an empty assignment in the common draft; assi
 one or more layouts and **Save** to activate its buttons. You may still enter any
 repository manually. Importing or clearing suggestions does not save or discard
 configuration edits. Clearing the catalog leaves configured assignments visible.
+It does not immediately repopulate during the current repository visit. Leaving
+the repository for a profile or global page and returning remembers it again;
+a persisted page return also starts a new visit. Repeated updates within the same
+repository do not cause duplicate discovery writes.
 See PRIVACY.md for exact stored fields and permission behavior.

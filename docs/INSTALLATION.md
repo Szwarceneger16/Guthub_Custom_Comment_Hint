@@ -17,34 +17,6 @@ The target is Firefox Desktop 140+. The local ZIP is unsigned. Temporary loading
 is appropriate for development; signing and distribution through Mozilla are
 separate work and have not been performed.
 
-## Update the already loaded development add-on to 0.1.1
-
-The user reported a manifest warning and missing toolbar in 0.1.0. The updated
-build removes `background.persistent`, which Firefox rejects in MV3, and supports
-the supplied main-form action `/owner/repo/pull/number/comment?sticky=true`.
-
-1. If the extension was loaded from `dist/extension/manifest.json`, rebuild and
-   click **Reload** on its card in `about:debugging#/runtime/this-firefox`. Keep
-   the existing extension ID; do not remove it as part of this update. Verify
-   version 0.1.1 in the add-on's details.
-2. Close/reopen the extension settings tab to load the updated settings bundle.
-   Export or save any unsaved draft first. In JSON, paste the desired document
-   and click the common **Save**; editing JSON alone does not persist it.
-3. Refresh existing GitHub tabs once so the new content script is injected.
-   Afterward, saved button changes update open pages without another refresh.
-4. On the reported PR, the supplied assignment `['codex', 'private-ci']` gives
-   Codex review, Codex security review, then CI now. Labels match the configuration
-   exactly, including any spelling. The grid should be above Write/Preview.
-5. In Assignments, click **Import GitHub history** and grant history access in
-   Firefox to populate suggestions from earlier visits. Subsequent GitHub visits
-   are remembered locally without that permission. Selecting a suggestion still
-   requires adding its assignment, choosing layouts and Save.
-
-If the add-on was loaded from a ZIP, Reload rereads that original ZIP. Use the new
-`artifacts/github_custom_comment_hint-0.1.1.zip` when loading/updating it, and export
-configuration before any Remove/reinstall operation. The screenshot's loaded
-location was the prepared `dist/extension/` directory.
-
 ## Load locally
 
 1. Build with `mise exec -- pnpm build` after the setup described in README.
@@ -66,9 +38,9 @@ in the dedicated profile if conducting live acceptance there.
 
 ## Authenticated GitHub checklist
 
-Use a PR and an Issue for which your configuration has assignments. These checks
-have not been performed by the agent and require authorization before an agent
-operates your existing browser/session.
+Use a PR and an Issue for which your configuration has assignments. Local fixtures
+do not establish these live results. Use a dedicated Firefox profile, or explicitly
+authorize an agent before it operates an existing browser/session.
 
 1. Confirm exactly one grid above Write/Preview at the main new-comment editor.
    Existing-comment edit forms and code-review threads must have no toolbar.

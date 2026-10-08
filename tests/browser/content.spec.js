@@ -235,7 +235,7 @@ test('repository visits persist without assignments and across SPA navigation ou
   expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(initial);
   await expect(toolbar(page)).toHaveCount(0);
   const messages=await page.evaluate(()=>window.__mock.messages.length);
-  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise','/solutions/industry','/RESOURCES/articles/security','/readme/featured','/EDUCATION/students']) {
+  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise','/solutions/industry','/RESOURCES/articles/security','/readme/featured','/EDUCATION/students','/git-guides/git-remote','/GIT-GUIDES/git-pull','/partners/technology-partners','/TRUST-CENTER/privacy','/why-github/overview']) {
     await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new Event('popstate'));},path);
     // Wait for the periodic observer as well as the navigation event.
     await page.waitForTimeout(500);

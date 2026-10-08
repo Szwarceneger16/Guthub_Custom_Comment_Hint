@@ -88,6 +88,25 @@ test('ReadME and Education routes stay out of visits, history and existing catal
   assert.deepEqual(await loadCatalog(api),[{owner:'Alice',repo:'readme'},{owner:'Bob',repo:'education'}]);
   assert.deepEqual(stored.config,{version:1});
 });
+test('Git Guides and service routes are excluded without blocking repositories named after them', async () => {
+  const pairs=[{owner:'git-guides',repo:'git-remote'},{owner:'partners',repo:'technology-partners'},{owner:'trust-center',repo:'privacy'},{owner:'why-github',repo:'overview'}];
+  const urls=pairs.flatMap(({owner,repo}) => [owner,owner.toUpperCase()].flatMap(prefix =>
+    ['', '/details'].map(path => `https://github.com/${prefix}/${repo}${path}?x=1#section`)));
+  for (const url of urls) assert.equal(repositoryFromURL(url),null);
+  assert.deepEqual(mergeRepositories(pairs),[]);
+  const {stored,api}=apiFixture();
+  for (const pair of pairs) stored[CATALOG_PREFIX+pair.owner+'/'+pair.repo]=pair;
+  assert.deepEqual(await loadCatalog(api),[]);assert.equal(await rememberRepositories(api,pairs),0);
+  let receive;api.runtime={onMessage:{addListener:listener=>{receive=listener;}}};registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url},{url,frameId:0,tab:{incognito:false}}),undefined);
+  const valid=pairs.map(({owner:repo})=>({owner:'Alice',repo}));
+  for (const pair of valid) assert.deepEqual(repositoryFromURL(`https://github.com/${pair.owner}/${pair.repo}`),pair);
+  api.permissions={request:async()=>true};
+  api.history={search:async()=>[...urls.map(url=>({url})),...valid.map(({owner,repo})=>({url:`https://github.com/${owner}/${repo}`}))]};
+  assert.deepEqual(await importHistory(api),{granted:true,count:valid.length});
+  assert.deepEqual(await loadCatalog(api),mergeRepositories(valid));
+  assert.deepEqual(stored.config,{version:1});
+});
 test('repository catalog deduplicates case but distinguishes owners; concurrent writes preserve config', async () => {
   const {stored,api}=apiFixture();
   await Promise.all([

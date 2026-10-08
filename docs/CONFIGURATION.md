@@ -89,11 +89,10 @@ available when the form is valid; restoring empty text makes it unavailable agai
 After conversation navigation, a retained editor with a generic form action
 stays inactive until it is replaced or has an action naming the current conversation.
 
-## Repository suggestions (0.1.1)
+## Repository suggestions
 
-The original assignment list came exclusively from `repositories` in the JSON,
-not Firefox history or open tabs. In 0.1.1, Assignments adds suggestions combining
-that configuration with a separate local repository catalog. It records repository
+Assignments combines `repositories` in the JSON with a separate local repository
+catalog to provide suggestions. The catalog records repository
 URLs encountered by the content script, including root, tree/blob, actions and other
 repository pages, even when they have no button assignment. Owner/repository pairs
 are deduplicated without regard to case; different owners remain distinct.
@@ -103,7 +102,8 @@ searches all retained HTTPS GitHub history with explicit all-time and result-lim
 parameters. It is not restricted to recent visits, the default 100 results, or open
 tabs. Deleted history and private browsing are unavailable. GitHub profiles and
 global routes such as settings, organizations, enterprises, stars, solutions,
-resources, ReadME, Education and topics do not become repository suggestions.
+resources, ReadME, Education, Git Guides, Partners, Trust Center, Why GitHub and
+topics do not become repository suggestions.
 URL extraction identifies candidates; it does not verify whether a
 repository still exists or whether you still have access.
 

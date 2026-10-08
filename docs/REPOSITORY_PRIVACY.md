@@ -5,7 +5,7 @@
 Publishable source contains extension code, fictional tests, user documentation,
 license and AMO materials. Conversation archives, personal handoff/memory records,
 local-machine evidence, unrelated repository references and old generated copies
-are outside that scope and have been removed from the working tree.
+are outside that scope and must not be included in publication materials.
 
 Test data uses fictional owner/repository pairs. Public project identity is
 intentional: the publisher's GitHub handle, this project's URL, copyright notice
@@ -41,15 +41,16 @@ stored here, including ignored reports or archives.
 
 ## Git history and the remote
 
-The local cleanup replaces the old development history with a signed root snapshot
-of the reviewed source. Old local refs, reflogs and unreachable objects must be
-removed and the all-object audit repeated. Do not merge or fetch the old history
-back into the clean branch.
+Removing material from the current working tree does not remove earlier versions
+from Git history. Review tracked documentation and publication assets manually as
+well as scanning content and paths. A clean pattern audit cannot establish that
+all historical natural-language context is appropriate for publication.
 
-A local rewrite does not clean GitHub. Keep the remote private until replacement
-history is published with explicitly approved force-with-lease protection and
-remote refs/commit contents are verified. Do not use a broad mirror push. Any
-other clone must be replaced or cleaned before pushing again.
+If sensitive material was committed, assess local refs, reflogs, unreachable
+objects, remote refs and other clones before publication. History rewriting,
+force-push and deletion require separate explicit authorization. Ordinary review
+fixes and a successful local audit do not authorize those operations or prove
+remote removal.
 
 Even after force-push, GitHub may retain old commits by SHA in cached views.
 For full server-side removal, follow [GitHub's sensitive-data removal process](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
@@ -64,7 +65,7 @@ The current review candidate passed these local checks:
 
 | Check | Result |
 | --- | --- |
-| Logic and privacy-rule tests | 38 passed. |
+| Logic and privacy-rule tests | 39 passed. |
 | Firefox synthetic fixture tests | 89 passed. |
 | Intercepted signing checks | 6 passed; no AMO request. |
 | web-ext lint | 0 errors, 0 notices, 1 retained Desktop-only warning. |
@@ -73,8 +74,7 @@ The current review candidate passed these local checks:
 | Prepared release ZIPs | All three archives checked, 0 audit findings. |
 | Runtime/configuration/locale integrity | Passed. |
 
-The final all-object result is recorded in ignored artifacts/privacy-audit.json
-after local history cleanup. Release archives and detailed reports are local
-generated outputs. They contain no conversation copies, profiles or private
-configuration. Remote history is a separate gate and has not been replaced by
-these local checks.
+The all-object result is recorded in ignored artifacts/privacy-audit.json.
+Release archives and detailed reports are local generated outputs. Manually
+review publication documents and assets before distribution; the pattern report
+does not replace that review or verification of remote history.

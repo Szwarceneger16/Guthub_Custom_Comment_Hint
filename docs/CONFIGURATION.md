@@ -102,8 +102,8 @@ searches all retained HTTPS GitHub history with explicit all-time and result-lim
 parameters. It is not restricted to recent visits, the default 100 results, or open
 tabs. Deleted history and private browsing are unavailable. GitHub profiles and
 global routes such as settings, organizations, enterprises, stars, solutions,
-resources, ReadME, Education, Git Guides, Partners, Trust Center, Why GitHub and
-topics do not become repository suggestions.
+resources, ReadME, Education, Git Guides, MCP Registry, Partners, Trust Center,
+Why GitHub and topics do not become repository suggestions.
 URL extraction identifies candidates; it does not verify whether a
 repository still exists or whether you still have access.
 
@@ -113,4 +113,8 @@ fields. **Add repository** creates an empty assignment in the common draft; assi
 one or more layouts and **Save** to activate its buttons. You may still enter any
 repository manually. Importing or clearing suggestions does not save or discard
 configuration edits. Clearing the catalog leaves configured assignments visible.
+It does not immediately repopulate during the current repository visit. Leaving
+the repository for a profile or global page and returning remembers it again;
+a persisted page return also starts a new visit. Repeated updates within the same
+repository do not cause duplicate discovery writes.
 See PRIVACY.md for exact stored fields and permission behavior.

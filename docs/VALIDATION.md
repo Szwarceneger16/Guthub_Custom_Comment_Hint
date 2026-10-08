@@ -30,7 +30,7 @@ mise exec -- pnpm check:integrity
 mise exec -- pnpm audit:privacy --history --packages
 ```
 
-The current run passed 39 logic/privacy tests, 89 Firefox fixture tests and six
+The current run passed 40 logic/privacy tests, 96 Firefox fixture tests and six
 intercepted signing checks. Source reproduction matched all 15 runtime files,
 and lint returned zero errors/notices with the
 known Desktop-only warning. Audit scope is summarized in REPOSITORY_PRIVACY.md.
@@ -85,6 +85,18 @@ owners. Firefox fixtures cover SPA visits and history suggestions without changi
 the configuration draft. Manual publication-document review complements pattern
 scanning; installation and configuration guidance describe the current release
 without incident-specific assignments or session context.
+
+MCP Registry URLs are excluded across extraction, background discovery, catalog
+writes, history imports and existing suggestions; an ordinary repository named
+`mcp` remains discoverable. Regressions reproduced the MCP prefix and a cleared
+catalog not returning after a profile visit before the fixes. Firefox fixtures
+cover returns through profiles, registry and home pages, including navigation
+without an event, case variants, query/fragment values and preserved drafts.
+The visit marker resets after leaving the repository or on a persisted
+pageshow; current-page updates do not repopulate a cleared catalog. Stale write
+failures cannot invalidate a newer visit, including a return to the same repository.
+Private visits remain unrecorded. Persisted pagehide/pageshow events are simulated;
+real-extension and browser-cache lifecycle acceptance remains separate.
 
 Discard regressions settle a stale read after multiple storage events in both dirty
 and clean tabs, including valid, invalid, null and removed configurations. The latest

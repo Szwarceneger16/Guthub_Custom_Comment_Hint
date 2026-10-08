@@ -107,6 +107,26 @@ test('Git Guides and service routes are excluded without blocking repositories n
   assert.deepEqual(await loadCatalog(api),mergeRepositories(valid));
   assert.deepEqual(stored.config,{version:1});
 });
+test('MCP Registry routes stay out of discovery, history and existing catalogs', async () => {
+  const urls=['mcp','MCP'].flatMap(prefix => ['', '/server', '/server/details'].map(path =>
+    `https://github.com/${prefix}/DemoOrg${path}?filter=all#details`));
+  for (const url of urls) assert.equal(repositoryFromURL(url),null);
+  const invalid={owner:'mcp',repo:'DemoOrg'};
+  assert.deepEqual(mergeRepositories([invalid]),[]);
+  const {stored,api}=apiFixture();
+  stored[CATALOG_PREFIX+'mcp/demoorg']=invalid;
+  assert.deepEqual(await loadCatalog(api),[]);
+  assert.equal(await rememberRepositories(api,[invalid]),0);
+  let receive;api.runtime={onMessage:{addListener:listener=>{receive=listener;}}};registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url},{url,frameId:0,tab:{incognito:false}}),undefined);
+  const valid={owner:'Alice',repo:'mcp'};
+  assert.deepEqual(repositoryFromURL('https://github.com/Alice/mcp'),valid);
+  api.permissions={request:async()=>true};
+  api.history={search:async()=>[...urls.map(url=>({url})),{url:'https://github.com/Alice/mcp'}]};
+  assert.deepEqual(await importHistory(api),{granted:true,count:1});
+  assert.deepEqual(await loadCatalog(api),[valid]);
+  assert.deepEqual(stored.config,{version:1});
+});
 test('repository catalog deduplicates case but distinguishes owners; concurrent writes preserve config', async () => {
   const {stored,api}=apiFixture();
   await Promise.all([

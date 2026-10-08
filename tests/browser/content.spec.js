@@ -235,13 +235,83 @@ test('repository visits persist without assignments and across SPA navigation ou
   expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(initial);
   await expect(toolbar(page)).toHaveCount(0);
   const messages=await page.evaluate(()=>window.__mock.messages.length);
-  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise','/solutions/industry','/RESOURCES/articles/security','/readme/featured','/EDUCATION/students','/git-guides/git-remote','/GIT-GUIDES/git-pull','/partners/technology-partners','/TRUST-CENTER/privacy','/why-github/overview']) {
+  for (const path of ['/settings/profile','/stars/octocat','/STARS/octocat/lists/review-tools','/enterprises/demo-enterprise','/solutions/industry','/RESOURCES/articles/security','/readme/featured','/EDUCATION/students','/git-guides/git-remote','/GIT-GUIDES/git-pull','/partners/technology-partners','/TRUST-CENTER/privacy','/why-github/overview','/mcp/DemoOrg/server','/MCP/DemoOrg/server']) {
     await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new Event('popstate'));},path);
     // Wait for the periodic observer as well as the navigation event.
     await page.waitForTimeout(500);
     expect(await page.evaluate(()=>window.__mock.messages.length)).toBe(messages);
     expect(await page.evaluate(()=>Object.keys(window.__mock.storage).filter(key=>key.startsWith('repositoryCatalog:')).sort())).toEqual(['repositoryCatalog:alice/one','repositoryCatalog:bob/two']);
   }
+});
+for (const {name,path,event} of [
+  {name:'a profile',path:'/Alice?tab=repositories',event:'popstate'},
+  {name:'the registry',path:'/mcp/DemoOrg/server',event:'turbo:load'},
+  {name:'the home page without a navigation event',path:'/',event:null},
+]) test(`a cleared catalog returns after visiting ${name}`,async({page})=>{
+  await openConversation(page);
+  await expect.poll(()=>page.evaluate(()=>window.__mock.storage['repositoryCatalog:alice/repo'])).toEqual({owner:'Alice',repo:'repo'});
+  await page.locator('#new_comment_field').fill('Keep draft');
+  await page.evaluate(async()=>{await browser.storage.local.remove('repositoryCatalog:alice/repo');dispatchEvent(new Event('turbo:render'));});
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(()=>window.__mock.messages.length)).toBe(1);
+  expect(await page.evaluate(()=>window.__mock.storage['repositoryCatalog:alice/repo'])).toBeUndefined();
+  await page.evaluate(({path,event})=>{history.pushState({},'',path);if(event)dispatchEvent(new Event(event));},{path,event});
+  await expect(toolbar(page)).toHaveCount(0);
+  expect(await page.evaluate(()=>window.__mock.messages.length)).toBe(1);
+  await page.evaluate(()=>{history.pushState({},'','/aLiCe/REPO/pull/12?x=1#comment');dispatchEvent(new Event('popstate'));});
+  await expect.poll(()=>page.evaluate(()=>window.__mock.storage['repositoryCatalog:alice/repo'])).toEqual({owner:'aLiCe',repo:'REPO'});
+  await expect(toolbar(page)).toHaveCount(1);await expect(page.locator('#new_comment_field')).toHaveValue('Keep draft');
+  await page.evaluate(()=>{history.pushState({},'','/Alice/repo/tree/main');dispatchEvent(new Event('turbo:render'));});
+  await expect(toolbar(page)).toHaveCount(0);await page.waitForTimeout(500);
+  expect(await page.evaluate(()=>window.__mock.messages.length)).toBe(2);
+  expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(config());
+});
+for (const destination of ['another repository','the same repository after leaving']) {
+  test(`a stale repository write failure cannot invalidate ${destination}`,async({page})=>{
+    await openConversation(page,{beforeContent:async page=>page.evaluate(()=>{
+      const send=browser.runtime.sendMessage;let first=true;
+      browser.runtime.sendMessage=message=>{
+        if(!first)return send(message);first=false;window.__mock.messages.push(message);
+        return new Promise((resolve,reject)=>{window.__mock.rejectFirstVisit=()=>reject(new Error('Old write failed'));});
+      };
+    })});
+    await expect.poll(()=>page.evaluate(()=>window.__mock.messages.length)).toBe(1);
+    if(destination.startsWith('the same')) {
+      await page.evaluate(()=>{history.pushState({},'','/Alice');dispatchEvent(new Event('popstate'));});
+      await expect(toolbar(page)).toHaveCount(0);
+    }
+    const path=destination.startsWith('the same')?'/Alice/repo/pull/12':'/Bob/repo/issues/9';
+    const key=destination.startsWith('the same')?'repositoryCatalog:alice/repo':'repositoryCatalog:bob/repo';
+    await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new Event('popstate'));},path);
+    await expect.poll(()=>page.evaluate(key=>Boolean(window.__mock.storage[key]),key)).toBe(true);
+    await page.evaluate(()=>window.__mock.rejectFirstVisit());
+    await page.evaluate(()=>dispatchEvent(new Event('turbo:render')));await page.waitForTimeout(500);
+    expect(await page.evaluate(()=>window.__mock.messages.length)).toBe(2);
+    expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(config());
+  });
+}
+test('a persisted page return remembers a later visit after the catalog was cleared',async({page})=>{
+  await openConversation(page);
+  await expect.poll(()=>page.evaluate(()=>window.__mock.messages.length)).toBe(1);
+  await page.locator('#new_comment_field').fill('Keep draft');
+  await page.evaluate(()=>browser.storage.local.remove('repositoryCatalog:alice/repo'));
+  await page.evaluate(()=>dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true})));
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(()=>window.__mock.messages.length)).toBe(1);
+  expect(await page.evaluate(()=>window.__mock.storage['repositoryCatalog:alice/repo'])).toBeUndefined();
+  await page.evaluate(()=>dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
+  await expect.poll(()=>page.evaluate(()=>window.__mock.storage['repositoryCatalog:alice/repo'])).toEqual({owner:'Alice',repo:'repo'});
+  await expect(toolbar(page)).toHaveCount(1);await expect(page.locator('#new_comment_field')).toHaveValue('Keep draft');
+  expect(await page.evaluate(()=>window.__mock.messages.length)).toBe(2);
+});
+test('private visits stay unrecorded through nonrepository navigation and return',async({page})=>{
+  await openConversation(page,{beforeContent:async page=>page.evaluate(()=>{browser.extension.inIncognitoContext=true;})});
+  await expect(toolbar(page)).toHaveCount(1);
+  await page.evaluate(()=>{history.pushState({},'','/Alice');dispatchEvent(new Event('popstate'));});await expect(toolbar(page)).toHaveCount(0);
+  await page.evaluate(()=>{history.pushState({},'','/Alice/repo/pull/12');dispatchEvent(new Event('popstate'));});await expect(toolbar(page)).toHaveCount(1);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(()=>window.__mock.messages)).toEqual([]);
+  expect(await page.evaluate(()=>Object.keys(window.__mock.storage))).toEqual(['config']);
 });
 test('mount above Write/Preview, insert exactly, update editor state, and never submit',async({page})=>{
   await openConversation(page);

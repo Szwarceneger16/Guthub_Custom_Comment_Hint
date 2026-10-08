@@ -12,6 +12,41 @@ function apiFixture() {
   } } } };
 }
 
+test('enterprise-account routes are excluded from visits, history and existing catalogs', async () => {
+  for (const route of ['enterprises', 'ENTERPRISES']) {
+    for (const path of ['', '/settings', '/people']) {
+      assert.equal(repositoryFromURL(`https://github.com/${route}/demo-enterprise${path}?x=1#anchor`), null);
+    }
+  }
+  const {stored, api} = apiFixture();
+  stored[CATALOG_PREFIX+'enterprises/demo-enterprise'] = {owner:'enterprises',repo:'demo-enterprise'};
+  assert.deepEqual(await loadCatalog(api), []);
+  assert.equal(await rememberRepositories(api, [{owner:'ENTERPRISES',repo:'demo-enterprise'}]), 0);
+  api.permissions = {request:async () => true};
+  api.history = {search:async () => [{url:'https://github.com/enterprises/demo-enterprise/settings'}, {url:'https://github.com/Alice/project'}]};
+  assert.deepEqual(await importHistory(api), {granted:true,count:1});
+  assert.deepEqual(await loadCatalog(api), [{owner:'Alice',repo:'project'}]);
+});
+
+test('account stars routes never become repositories through discovery, history or an old catalog', async () => {
+  const urls = ['stars', 'STARS'].flatMap(route => ['', '/lists/review-tools'].map(path =>
+    `https://github.com/${route}/octocat${path}?tab=stars#list`));
+  for (const url of urls) assert.equal(repositoryFromURL(url), null);
+  const {stored, api} = apiFixture();
+  stored[CATALOG_PREFIX+'stars/octocat'] = {owner:'stars',repo:'octocat'};
+  assert.deepEqual(await loadCatalog(api), []);
+  assert.equal(await rememberRepositories(api, [{owner:'STARS',repo:'octocat'}]), 0);
+  let receive;
+  api.runtime = {onMessage:{addListener:listener => { receive=listener; }}};
+  registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url}, {frameId:0,url,tab:{incognito:false}}), undefined);
+  api.permissions = {request:async () => true};
+  api.history = {search:async () => [...urls.map(url => ({url})), {url:'https://github.com/Octocat/stars'}]};
+  assert.deepEqual(await importHistory(api), {granted:true,count:1});
+  assert.deepEqual(await loadCatalog(api), [{owner:'Octocat',repo:'stars'}]);
+  assert.deepEqual(stored.config, {version:1});
+});
+
 test('repository discovery handles all repository pages and rejects other hosts and global routes', () => {
   for (const path of ['','/tree/main','/blob/main/README.md','/pull/102/files','/issues/2','/settings','/actions']) {
     assert.deepEqual(repositoryFromURL(`https://github.com/Alice/project${path}?x=1#anchor`),{owner:'Alice',repo:'project'});
@@ -20,6 +55,77 @@ test('repository discovery handles all repository pages and rejects other hosts 
   for (const url of ['https://github.com','https://github.com/Alice?tab=repositories','https://github.com/settings/profile','https://github.com/orgs/Alice/projects','https://github.com/topics/javascript','https://github.com/search?q=repo','https://example.com/Alice/project','http://github.com/Alice/project','https://github.com.evil.invalid/Alice/project','https://github.com/Alice/a%2Fb','https://' + ['user','secret'].join(':') + '@github.com/Alice/project']) {
     assert.equal(repositoryFromURL(url),null,url);
   }
+});
+test('marketing routes are excluded across discovery, history, writes and existing catalogs', async () => {
+  const pairs=[{owner:'solutions',repo:'industry'},{owner:'resources',repo:'articles'}];
+  const urls=pairs.flatMap(({owner,repo}) => [owner,owner.toUpperCase()].flatMap(prefix =>
+    ['', '/security'].map(path => `https://github.com/${prefix}/${repo}${path}?x=1#section`)));
+  for (const url of urls) assert.equal(repositoryFromURL(url),null);
+  const {stored,api}=apiFixture();
+  for (const pair of pairs) stored[CATALOG_PREFIX+pair.owner+'/'+pair.repo]=pair;
+  assert.deepEqual(await loadCatalog(api),[]);assert.equal(await rememberRepositories(api,pairs),0);
+  let receive;api.runtime={onMessage:{addListener:listener=>{receive=listener;}}};registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url},{url,frameId:0,tab:{incognito:false}}),undefined);
+  api.permissions={request:async()=>true};
+  api.history={search:async()=>[...urls.map(url=>({url})),{url:'https://github.com/Alice/solutions'},{url:'https://github.com/Bob/resources'}]};
+  assert.deepEqual(await importHistory(api),{granted:true,count:2});
+  assert.deepEqual(await loadCatalog(api),[{owner:'Alice',repo:'solutions'},{owner:'Bob',repo:'resources'}]);
+  assert.deepEqual(stored.config,{version:1});
+});
+test('ReadME and Education routes stay out of visits, history and existing catalogs', async () => {
+  const pairs=[{owner:'readme',repo:'featured'},{owner:'education',repo:'students'}];
+  const urls=pairs.flatMap(({owner,repo}) => [owner,owner.toUpperCase()].flatMap(prefix =>
+    ['', '/details'].map(path => `https://github.com/${prefix}/${repo}${path}?x=1#section`)));
+  for (const url of urls) assert.equal(repositoryFromURL(url),null);
+  const {stored,api}=apiFixture();
+  for (const pair of pairs) stored[CATALOG_PREFIX+pair.owner+'/'+pair.repo]=pair;
+  assert.deepEqual(await loadCatalog(api),[]);assert.equal(await rememberRepositories(api,pairs),0);
+  let receive;api.runtime={onMessage:{addListener:listener=>{receive=listener;}}};registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url},{url,frameId:0,tab:{incognito:false}}),undefined);
+  api.permissions={request:async()=>true};
+  api.history={search:async()=>[...urls.map(url=>({url})),{url:'https://github.com/Alice/readme'},{url:'https://github.com/Bob/education'}]};
+  assert.deepEqual(await importHistory(api),{granted:true,count:2});
+  assert.deepEqual(await loadCatalog(api),[{owner:'Alice',repo:'readme'},{owner:'Bob',repo:'education'}]);
+  assert.deepEqual(stored.config,{version:1});
+});
+test('Git Guides and service routes are excluded without blocking repositories named after them', async () => {
+  const pairs=[{owner:'git-guides',repo:'git-remote'},{owner:'partners',repo:'technology-partners'},{owner:'trust-center',repo:'privacy'},{owner:'why-github',repo:'overview'}];
+  const urls=pairs.flatMap(({owner,repo}) => [owner,owner.toUpperCase()].flatMap(prefix =>
+    ['', '/details'].map(path => `https://github.com/${prefix}/${repo}${path}?x=1#section`)));
+  for (const url of urls) assert.equal(repositoryFromURL(url),null);
+  assert.deepEqual(mergeRepositories(pairs),[]);
+  const {stored,api}=apiFixture();
+  for (const pair of pairs) stored[CATALOG_PREFIX+pair.owner+'/'+pair.repo]=pair;
+  assert.deepEqual(await loadCatalog(api),[]);assert.equal(await rememberRepositories(api,pairs),0);
+  let receive;api.runtime={onMessage:{addListener:listener=>{receive=listener;}}};registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url},{url,frameId:0,tab:{incognito:false}}),undefined);
+  const valid=pairs.map(({owner:repo})=>({owner:'Alice',repo}));
+  for (const pair of valid) assert.deepEqual(repositoryFromURL(`https://github.com/${pair.owner}/${pair.repo}`),pair);
+  api.permissions={request:async()=>true};
+  api.history={search:async()=>[...urls.map(url=>({url})),...valid.map(({owner,repo})=>({url:`https://github.com/${owner}/${repo}`}))]};
+  assert.deepEqual(await importHistory(api),{granted:true,count:valid.length});
+  assert.deepEqual(await loadCatalog(api),mergeRepositories(valid));
+  assert.deepEqual(stored.config,{version:1});
+});
+test('MCP Registry routes stay out of discovery, history and existing catalogs', async () => {
+  const urls=['mcp','MCP'].flatMap(prefix => ['', '/server', '/server/details'].map(path =>
+    `https://github.com/${prefix}/DemoOrg${path}?filter=all#details`));
+  for (const url of urls) assert.equal(repositoryFromURL(url),null);
+  const invalid={owner:'mcp',repo:'DemoOrg'};
+  assert.deepEqual(mergeRepositories([invalid]),[]);
+  const {stored,api}=apiFixture();
+  stored[CATALOG_PREFIX+'mcp/demoorg']=invalid;
+  assert.deepEqual(await loadCatalog(api),[]);
+  assert.equal(await rememberRepositories(api,[invalid]),0);
+  let receive;api.runtime={onMessage:{addListener:listener=>{receive=listener;}}};registerRepositoryDiscovery(api);
+  for (const url of urls) assert.equal(receive({type:'rememberRepository',url},{url,frameId:0,tab:{incognito:false}}),undefined);
+  const valid={owner:'Alice',repo:'mcp'};
+  assert.deepEqual(repositoryFromURL('https://github.com/Alice/mcp'),valid);
+  api.permissions={request:async()=>true};
+  api.history={search:async()=>[...urls.map(url=>({url})),{url:'https://github.com/Alice/mcp'}]};
+  assert.deepEqual(await importHistory(api),{granted:true,count:1});
+  assert.deepEqual(await loadCatalog(api),[valid]);
+  assert.deepEqual(stored.config,{version:1});
 });
 test('repository catalog deduplicates case but distinguishes owners; concurrent writes preserve config', async () => {
   const {stored,api}=apiFixture();

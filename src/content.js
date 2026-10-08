@@ -11,23 +11,34 @@ let pending = false;
 let stopped = false;
 let configRevision = 0;
 let rememberedRepository;
+const editorConversations = new WeakMap();
 const media = matchMedia('(prefers-color-scheme: dark)');
 
 function reconcile() {
   pending = false;
   if (stopped) return;
   const repository = repositoryFromURL(location.href);
-  if (repository && repositoryKey(repository) !== rememberedRepository && !browser.extension?.inIncognitoContext) {
-    rememberedRepository = repositoryKey(repository);
+  if (!repository) rememberedRepository = undefined;
+  else if (repositoryKey(repository) !== rememberedRepository?.key && !browser.extension?.inIncognitoContext) {
+    const visit = { key:repositoryKey(repository) };
+    rememberedRepository = visit;
     browser.runtime.sendMessage({ type:'rememberRepository', url:location.href }).catch(() => {
-      // Retry after navigation; toolbar behavior is independent of the catalog.
-      rememberedRepository = undefined;
+      // Allow retries for this visit without invalidating a newer one.
+      if (rememberedRepository === visit) rememberedRepository = undefined;
     });
   }
   const conversation = conversationFromURL(location.href);
   const buttons = conversation && config && !validateConfig(config).length ? resolveButtons(config, conversation.owner, conversation.repo) : [];
-  const target = conversation && buttons.length ? findMainEditor(document, conversation) : null;
-  const nextSignature = JSON.stringify([conversation?.key, buttons]);
+  let target = conversation ? findMainEditor(document, conversation) : null;
+  if (target) {
+    const previous = editorConversations.get(target.editor);
+    // A generic action cannot establish ownership after this editor outlives a conversation.
+    const stale = previous && (previous.stale || previous.key !== conversation.key);
+    editorConversations.set(target.editor, { key: conversation.key, stale: Boolean(stale && !target.conversationSpecific) });
+    if (stale && !target.conversationSpecific) target = null;
+  }
+  if (!buttons.length) target = null;
+  const nextSignature = JSON.stringify([conversation?.key, buttons.map(({label, value, mode}) => [label, value, mode])]);
   if (binding && (!target || target.editor !== binding.editor || target.section !== binding.section || !binding.host.isConnected || nextSignature !== signature)) {
     binding.destroy();
     binding = null;
@@ -39,7 +50,8 @@ function reconcile() {
   if (binding) binding.host.dataset.theme = themeFor(document);
 }
 
-function schedule() {
+function schedule(event) {
+  if (event?.type === 'pageshow' && event.persisted) rememberedRepository = undefined;
   if (!pending && !stopped) { pending = true; queueMicrotask(reconcile); }
 }
 
@@ -60,7 +72,7 @@ const onStorageChanged = (changes, area) => {
 };
 browser.storage.onChanged.addListener(onStorageChanged);
 const initialRevision = configRevision;
-loadConfig(browser).then((value) => { if (configRevision === initialRevision) config = value; schedule(); }).catch(() => { config = undefined; schedule(); });
+loadConfig(browser).then((value) => { if (configRevision === initialRevision) config = value; schedule(); }).catch(() => { if (configRevision === initialRevision) config = undefined; schedule(); });
 
 window.addEventListener('pagehide', (event) => {
   if (event.persisted) { binding?.destroy(); binding = null; return; }

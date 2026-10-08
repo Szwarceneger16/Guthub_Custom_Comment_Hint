@@ -21,7 +21,7 @@ export function findMainEditor(document, conversation) {
     if (form.querySelector('input[name="_method"][value="patch"], input[name="_method"][value="put"]')) continue;
     const section = editor.closest('.js-previewable-comment-form, [data-testid="markdown-editor"]');
     if (!section || !form.contains(section)) continue;
-    candidates.push({ editor, form, section });
+    candidates.push({ editor, form, section, conversationSpecific: action.pathname.toLowerCase() !== expectedAction });
   }
   return candidates.length === 1 ? candidates[0] : null;
 }
@@ -40,10 +40,12 @@ export function attachToolbar(document, target, buttons, undoLabel, conversation
     const setter = Object.getOwnPropertyDescriptor(document.defaultView.HTMLTextAreaElement.prototype, 'value').set;
     writing = true;
     try {
-      setter.call(editor, value);
+      // GitHub installs validity listeners on focus, before native text changes.
       editor.focus();
+      setter.call(editor, value);
       editor.setSelectionRange(start, end, direction);
-      editor.dispatchEvent(new document.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertText', data: null }));
+      editor.dispatchEvent(new document.defaultView.InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: null }));
+      editor.dispatchEvent(new document.defaultView.Event('change', { bubbles: true }));
     } finally { writing = false; }
   }
   const grid = createGrid(document, buttons, {
@@ -51,8 +53,9 @@ export function attachToolbar(document, target, buttons, undoLabel, conversation
     onInsert: (definition) => {
       if (!current()) return;
       state.capture(editor);
-      insertedValue = insertText(editor.value, definition);
-      write(insertedValue);
+      write(insertText(editor.value, definition));
+      // The native textarea setter normalizes CRLF and lone CR to LF.
+      insertedValue = editor.value;
       grid.setUndoAvailable(true);
     },
     onUndo: () => {

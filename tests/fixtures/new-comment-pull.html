@@ -6,12 +6,33 @@
       <file-attachment class="js-upload-markdown-image is-default" role="tabpanel">
         <div class="js-write-bucket position-relative">
           <text-expander><slash-command-expander><div class="CommentBox-container">
-            <textarea id="new_comment_field" name="comment[body]" aria-label="Comment"></textarea>
+            <textarea id="new_comment_field" name="comment[body]" aria-label="Comment" required></textarea>
           </div></slash-command-expander></text-expander>
         </div>
       </file-attachment>
       <div class="preview-pane" hidden></div>
     </tab-container>
   </fieldset>
-  <button type="submit">Comment</button>
+  <button type="submit" data-disable-invalid disabled>Comment</button>
 </form>
+<script>
+  // Model GitHub's form validity check and input listener installed on focus.
+  (() => {
+    const form = document.getElementById('new_comment_form');
+    const editor = form.querySelector('textarea');
+    const submit = form.querySelector('[data-disable-invalid]');
+    const refresh = () => { submit.disabled = !form.checkValidity(); };
+    form.addEventListener('change', refresh);
+    editor.addEventListener('focus', () => {
+      let valid = editor.checkValidity();
+      const onInput = () => {
+        const next = editor.checkValidity();
+        if (next !== valid) refresh();
+        valid = next;
+      };
+      editor.addEventListener('input', onInput);
+      editor.addEventListener('blur', () => editor.removeEventListener('input', onInput), { once: true });
+    });
+    refresh();
+  })();
+</script>

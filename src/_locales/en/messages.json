@@ -38,6 +38,9 @@
   "saveFailed": {
     "message": "Save failed. Your draft is still available; try again."
   },
+  "saveUnverified": {
+    "message": "Could not verify the stored configuration after saving. Your draft is still available; retry Save or discard to load storage."
+  },
   "loadFailed": {
     "message": "Could not read local configuration. Reopen settings to retry."
   },

@@ -88,6 +88,7 @@ use checked-in PNGs and need no browser. Never publish local caches or profiles.
 - [Configuration](docs/CONFIGURATION.md): JSON, layout sharing and text behavior.
 - [Installation](docs/INSTALLATION.md): temporary installation and live acceptance.
 - [Privacy](docs/PRIVACY.md): local data and permission scope.
+- [Security](SECURITY.md): vulnerability reporting, threat model and Codex Security review guidance.
 - [Publication](docs/PUBLICATION.md): AMO materials and submission instructions.
 - [Validation](docs/VALIDATION.md): actual local checks and remaining acceptance.
 - [Source reproduction](SOURCE_BUILD.md): instructions included in reviewer sources.

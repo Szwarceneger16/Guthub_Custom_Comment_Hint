@@ -30,9 +30,9 @@ mise exec -- pnpm check:integrity
 mise exec -- pnpm audit:privacy --history --packages
 ```
 
-The current run passed 23 logic/privacy tests, 32 Firefox fixture tests and six
-intercepted signing checks. The Firefox run took 25.6 seconds. Source reproduction
-matched all 15 runtime files, and lint returned zero errors/notices with the
+The current run passed 40 logic/privacy tests, 96 Firefox fixture tests and six
+intercepted signing checks. Source reproduction matched all 15 runtime files,
+and lint returned zero errors/notices with the
 known Desktop-only warning. Audit scope is summarized in REPOSITORY_PRIVACY.md.
 Detailed generated evidence remains in ignored `artifacts/`: release-report.json,
 lint-report.json, privacy-audit.json and versioned SHA256SUMS.
@@ -43,6 +43,99 @@ Undo and privacy-rule behavior. Firefox fixtures cover main PR/issue editors,
 exclusions, ambiguity, SPA navigation, form replacement, live settings changes,
 text/selection preservation, Write/Preview, themes, geometry, keyboard use and
 settings import/export/failure paths.
+
+Regression tests first reproduced the review findings on the previous PR head.
+They now cover synthetic insertion/Undo refusal, enterprise-account exclusion
+from visits/history/catalog suggestions, concurrent saves (including removed or
+invalid storage, late notifications, stale reads and verification failures), and
+retained generic editors across conversation changes. Real mouse/keyboard
+activation and conversation-specific action recovery remain covered.
+
+Further regressions cover account Stars URLs (including lists and case variants)
+through URL discovery, background messages, history imports and existing catalogs;
+a real repository named `stars` remains discoverable. PNGs now receive all general
+privacy patterns in addition to metadata checks. Tests cover trailers, metadata
+and other chunk content, truncated/oversized chunks, and an isolated audit run
+against a worktree file, an unreachable Git blob and a ZIP entry. Audit reports
+and console output contain finding types rather than the synthetic matched value.
+Related checks also exposed and fixed quoted JSON credential keys being missed
+by the literal-secret rule; quoted and unquoted keys and values are covered,
+including environment/YAML syntax and the existing placeholder exclusions.
+
+Marketing prefixes `solutions` and `resources` are excluded by the same shared
+filter as other global routes. Regressions cover visits, background messages,
+history imports and existing catalogs while preserving ordinary repositories
+with those names. Content-script startup tests settle a deferred initial read
+with success or failure after valid, invalid or removal events; the newer event
+always wins and preserves an active toolbar's draft and Undo state. A failure
+without a newer event remains inactive and recovers after a later valid event.
+
+ReadME and Education global routes are excluded across visits, background messages,
+history imports and stored catalogs; ordinary repositories with those names remain
+discoverable. The private-key rule covers encrypted PKCS #8 PEM as well as existing
+private-key formats. Regressions also check PNG trailing bytes and distinguish public
+keys/certificates. An isolated audit confirms rejection in a worktree file, an
+unreachable Git blob and a ZIP entry without exposing the synthetic matched value.
+
+Git Guides, Partners, Trust Center and Why GitHub prefixes use the shared global
+route filter. Regressions cover case variants, nested paths, query/fragment values,
+background discovery, history imports, catalog writes and previously stored
+suggestions, while preserving real repositories with those names under ordinary
+owners. Firefox fixtures cover SPA visits and history suggestions without changing
+the configuration draft. Manual publication-document review complements pattern
+scanning; installation and configuration guidance describe the current release
+without incident-specific assignments or session context.
+
+MCP Registry URLs are excluded across extraction, background discovery, catalog
+writes, history imports and existing suggestions; an ordinary repository named
+`mcp` remains discoverable. Regressions reproduced the MCP prefix and a cleared
+catalog not returning after a profile visit before the fixes. Firefox fixtures
+cover returns through profiles, registry and home pages, including navigation
+without an event, case variants, query/fragment values and preserved drafts.
+The visit marker resets after leaving the repository or on a persisted
+pageshow; current-page updates do not repopulate a cleared catalog. Stale write
+failures cannot invalidate a newer visit, including a return to the same repository.
+Private visits remain unrecorded. Persisted pagehide/pageshow events are simulated;
+real-extension and browser-cache lifecycle acceptance remains separate.
+
+Discard regressions settle a stale read after multiple storage events in both dirty
+and clean tabs, including valid, invalid, null and removed configurations. The latest
+event wins; later user edits supersede pending discard success/failure and failed
+reads preserve the draft for retry. Toolbar tests preserve the same host, text, selection and Undo
+through JSON property reordering and added/changed/removed unknown fields. Changes
+to effective labels, values, modes or button order still rebuild the toolbar and
+use the updated insertion behavior.
+
+Settings startup retains notifications instead of issuing an unguarded reread.
+Regressions reproduce events during the old reread and initial-read rejection,
+cover valid/invalid/null/removal values, and prevent defaults from overwriting a
+newer event when the initial snapshot lacks the key. A failure without a notification
+reports unavailability and performs no writes.
+
+Path audit regressions use benign file contents with synthetic sensitive values
+only in filenames, parent directories and archive names. General rules scan both
+original and separator-normalized paths. All local Git trees, including unreachable
+trees, are traversed with full nested paths. Tests verify worktree/tree/ZIP rejection,
+opaque path identifiers in reports and console output, and allowed Unicode/tab/newline
+names. Fixtures are created in disposable repositories; synthetic values never
+enter this project's Git objects.
+
+Firefox tests cover CRLF, lone CR and mixed line endings in replace/append,
+empty/nonempty Unicode drafts, end-of-text cursor placement, selection restoration,
+consecutive insertions and silent page edits. Windows-authored JSON survives BOM
+import, view changes, unrelated form edits, Save and export with its original
+strings. Only the textarea's native LF representation is used for Undo comparison.
+
+The main-comment fixture models GitHub's required textarea, disabled submit
+control and validity listener installed on focus. Its behavior follows the
+[public GitHub validation bundle](https://github.githubassets.com/assets/0pd-c46d8dfae89c2b64.js):
+input updates depend on a validity transition, while bubbling change refreshes
+the form. Regression tests reproduced the disabled Comment button before the fix
+on both PRs and issues, as well as stale submit state after Undo. They now check
+replace/append, keyboard activation, insertion from Preview, empty replacement,
+Undo and preservation of other invalid fields. Focus precedes mutation; input
+and change are dispatched while extension writes are excluded from manual-edit
+Undo invalidation. The extension never changes the submit button itself.
 
 Signing checks intercept the PNPM signer subprocess and use dummy credentials.
 They verify both channels, source attachment, no credentials in arguments,

@@ -1,9 +1,9 @@
 import { assertConfig } from './config.js';
 import defaults from './default-config.json' with { type: 'json' };
 
-export async function initializeConfig(api) {
+export async function initializeConfig(api, canInitialize=()=>true) {
   const stored = await api.storage.local.get('config');
-  if (!Object.hasOwn(stored, 'config')) {
+  if (!Object.hasOwn(stored, 'config') && canInitialize()) {
     await api.storage.local.set({ config: defaults });
     return defaults;
   }

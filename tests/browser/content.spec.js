@@ -3,6 +3,101 @@ import { openConversation, form, config } from './helpers.js';
 import { readFileSync } from 'node:fs';
 
 const toolbar=page=>page.locator('[data-comment-hint]');
+for (const mode of ['replace','append']) test(`Undo restores text and selection after ${mode} with normalized line endings`,async({page})=>{
+  const values=['Zażółć\r\n🧪\r\n','Zażółć\r🧪\r','Zażółć\r\n🧪\rEnd\n'];
+  const initial=config();initial.layouts.ci=values.map((value,index)=>({label:`Insert ${index}`,value,mode}));initial.repositories.Alice.repo=['ci'];
+  await openConversation(page,{initial});await expect(toolbar(page)).toHaveCount(1);
+  const editor=page.locator('#new_comment_field');const undo=page.getByRole('button',{name:'Undo',exact:true});
+  for (let index=0;index<values.length;index++) {
+    for (const before of ['', 'Draft 🧪\nSecond line']) {
+      await editor.fill(before);await editor.evaluate(node=>node.setSelectionRange(1,4,'backward'));
+      const selection=await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection]);
+      await page.getByRole('button',{name:`Insert ${index}`,exact:true}).click();
+      const expected=(mode==='append'&&before?before+'\n':'')+values[index].replace(/\r\n?/g,'\n');
+      await expect(editor).toHaveValue(expected);await expect(editor).toBeFocused();
+      expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd])).toEqual([expected.length,expected.length]);
+      await undo.click();await expect(editor).toHaveValue(before);
+      expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual(selection);
+      await expect(undo).toBeDisabled();
+    }
+  }
+  await page.getByRole('button',{name:'Insert 0',exact:true}).click();
+  const first=await editor.inputValue();
+  await page.getByRole('button',{name:'Insert 1',exact:true}).click();await undo.click();await expect(editor).toHaveValue(first);
+  expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(initial);
+  expect(await page.evaluate(()=>window.submissions)).toBe(0);
+});
+
+test('a silent page mutation after normalized insertion cannot be undone over the new text',async({page})=>{
+  const initial=config();initial.layouts.ci[0].value='First\r\nSecond\r';
+  await openConversation(page,{initial});await expect(toolbar(page)).toHaveCount(1);
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  const editor=page.locator('#new_comment_field');await editor.evaluate(node=>{node.value='Later draft';node.setSelectionRange(1,4,'backward');});
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(editor).toHaveValue('Later draft');
+  expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual([1,4,'backward']);
+  await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeDisabled();
+});
+
+for(const kind of ['pull','issues'])test(`insertion and Undo refresh the Comment button's form validity on ${kind}`,async({page})=>{
+  const initial=config();initial.layouts.ci=[
+    {label:'Replace',value:'/review',mode:'replace'},
+    {label:'Append',value:'/security',mode:'append'},
+    {label:'Clear',value:'',mode:'replace'},
+  ];initial.repositories.Alice.repo=['ci'];
+  const body=readFileSync('tests/fixtures/new-comment-pull.html','utf8').replace('/DemoOrg/project/pull/42/comment?sticky=true',`/Alice/repo/${kind}/12/comment`);
+  await openConversation(page,{initial,url:`https://github.com/Alice/repo/${kind}/12`,body});
+  const submit=page.getByRole('button',{name:'Comment',exact:true});const editor=page.locator('#new_comment_field');
+  await expect(toolbar(page)).toHaveCount(1);await expect(submit).toBeDisabled();
+  await page.getByRole('button',{name:'Replace',exact:true}).focus();await page.keyboard.press('Enter');
+  await expect(editor).toHaveValue('/review');await expect(submit).toBeEnabled();
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(editor).toHaveValue('');await expect(submit).toBeDisabled();
+  await page.getByRole('button',{name:'Preview',exact:true}).click();
+  await page.getByRole('button',{name:'Append',exact:true}).click();await expect(submit).toBeEnabled();
+  await page.getByRole('button',{name:'Write',exact:true}).click();await expect(editor).toHaveValue('/security');
+  await page.getByRole('button',{name:'Clear',exact:true}).click();await expect(editor).toHaveValue('');await expect(submit).toBeDisabled();
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(editor).toHaveValue('/security');await expect(submit).toBeEnabled();
+  expect(await page.evaluate(()=>window.submissions)).toBe(0);
+});
+
+test('insertion preserves other GitHub form constraints instead of enabling submission directly',async({page})=>{
+  const body=readFileSync('tests/fixtures/new-comment-pull.html','utf8')
+    .replace('/DemoOrg/project/pull/42/comment?sticky=true','/Alice/repo/pull/12/comment')
+    .replace('<fieldset','<input required aria-label="Required field"><fieldset');
+  await openConversation(page,{body});await expect(toolbar(page)).toHaveCount(1);
+  const submit=page.getByRole('button',{name:'Comment',exact:true});
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  await expect(page.locator('#new_comment_field')).toHaveValue('/ci-now');await expect(submit).toBeDisabled();
+  await page.getByLabel('Required field',{exact:true}).fill('valid');await page.keyboard.press('Tab');
+  await expect(submit).toBeEnabled();
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await expect(submit).toBeDisabled();
+  expect(await page.evaluate(()=>window.submissions)).toBe(0);
+});
+
+test('synthetic insertion and undo cannot expose configured values or change text and selection',async({page})=>{
+  await openConversation(page);await expect(toolbar(page)).toHaveCount(1);
+  const editor=page.locator('#new_comment_field');await editor.fill('Private draft');
+  await editor.evaluate(node=>node.setSelectionRange(1,4,'backward'));
+  const before=await page.evaluate(()=>window.inputs);
+  await toolbar(page).evaluate(host=>{
+    for(const button of host.shadowRoot.querySelectorAll('.action')) {
+      button.click();button.dispatchEvent(new MouseEvent('click',{bubbles:true,composed:true}));
+    }
+  });
+  await expect(editor).toHaveValue('Private draft');
+  expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual([1,4,'backward']);
+  expect(await page.evaluate(()=>window.inputs)).toBe(before);
+  await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeDisabled();
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
+  await toolbar(page).evaluate(host=>{
+    const undo=host.shadowRoot.querySelector('.undo');undo.click();undo.dispatchEvent(new MouseEvent('click',{bubbles:true,composed:true}));
+  });
+  await expect(editor).toHaveValue('/ci-now');
+  await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Undo',exact:true}).focus();await page.keyboard.press('Enter');
+  await expect(editor).toHaveValue('Private draft');
+  expect(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd,node.selectionDirection])).toEqual([1,4,'backward']);
+});
+
 test('GitHub-style main pull comment action mounts all configured buttons above tabs',async({page})=>{
   const initial={version:1,layouts:{ci:[{label:'▶️ CI now',value:'/ci-now',mode:'replace'}],codex:[{label:'🤖 Codex review',value:'@codex review',mode:'replace'},{label:'🤖 Codex security review',value:'@codex security review',mode:'append'}]},repositories:{DemoOrg:{project:['codex','ci'],another:['codex']}}};
   await openConversation(page,{initial,url:'https://github.com/DemoOrg/project/pull/42',body:readFileSync('tests/fixtures/new-comment-pull.html','utf8')});
@@ -21,7 +116,10 @@ test('GitHub-style main pull comment action mounts all configured buttons above 
 test('numbered comment action rejects a stale conversation number, kind or host',async({page})=>{
   await openConversation(page,{body:form({id:'new_comment_form',action:'/Alice/repo/pull/12/comment?sticky=true'})});
   await expect(toolbar(page)).toHaveCount(1);
-  await page.evaluate(()=>{document.querySelector('form').action='/Alice/repo/pull/13/comment';document.querySelector('[data-comment-hint]').shadowRoot.querySelector('.action').click();});
+  await toolbar(page).evaluate(host=>host.shadowRoot.querySelector('.action').addEventListener('click',()=>{
+    document.querySelector('form').action='/Alice/repo/pull/13/comment';
+  },{capture:true,once:true}));
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
   await expect(page.locator('#new_comment_field')).toHaveValue('');
   await expect(toolbar(page)).toHaveCount(0);
   for(const action of ['/Alice/repo/pull/13/comment','/Alice/repo/issues/12/comment','https://evil.invalid/Alice/repo/pull/12/comment']) {
@@ -93,7 +191,10 @@ test('empty assignments unmount without changing text; unknown and read-only edi
 });
 test('route changes invalidate actions immediately, before periodic reconciliation',async({page})=>{
   await openConversation(page);await expect(toolbar(page)).toHaveCount(1);
-  await page.evaluate(()=>{history.pushState({},'','/Bob/repo/issues/3');document.querySelector('[data-comment-hint]').shadowRoot.querySelector('.action').click();});
+  await toolbar(page).evaluate(host=>host.shadowRoot.querySelector('.action').addEventListener('click',()=>{
+    history.pushState({},'','/Bob/repo/issues/3');
+  },{capture:true,once:true}));
+  await page.getByRole('button',{name:'▶️ CI now',exact:true}).click();
   await expect(page.locator('#new_comment_field')).toHaveValue('');expect(await page.evaluate(()=>window.submissions)).toBe(0);
 });
 test('SPA repository navigation and form replacement drop old undo and mount once',async({page})=>{

@@ -120,6 +120,21 @@ test('import accepts UTF-8 BOM and Unicode; invalid encoding preserves draft; ex
   const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Export JSON',exact:true}).click();const download=await downloaded;
   const stream=await download.createReadStream();const chunks=[];for await(const chunk of stream)chunks.push(chunk);const bytes=Buffer.concat(chunks);expect(bytes.subarray(0,3).equals(Buffer.from([0xef,0xbb,0xbf]))).toBe(false);expect(JSON.parse(bytes.toString('utf8'))).toEqual(next);
 });
+test('imported Windows line endings survive form views, unrelated edits, Save and export',async({page})=>{
+  await openOptions(page);await page.getByRole('tab',{name:'JSON',exact:true}).click();
+  const next=config();next.layouts.ci[0].label='Łódź\r\nReview';next.layouts.ci[0].value='First\r\n🧪\rThird\n';
+  await page.getByLabel('Import JSON',{exact:true}).setInputFiles({name:'windows.json',mimeType:'application/json',buffer:Buffer.from('\uFEFF'+JSON.stringify(next),'utf8')});
+  await expect(page.locator('#status')).toContainText('Imported into the draft');
+  await page.getByRole('tab',{name:'Layouts',exact:true}).click();await expect(page.getByLabel('Inserted text',{exact:true})).toHaveValue('First\n🧪\nThird\n');
+  await page.getByRole('combobox',{name:'Insertion mode',exact:true}).selectOption('append');next.layouts.ci[0].mode='append';
+  await page.getByRole('tab',{name:'Assignments',exact:true}).click();await page.getByRole('tab',{name:'JSON',exact:true}).click();
+  expect(JSON.parse(await page.locator('#json-editor').inputValue())).toEqual(next);
+  await page.getByRole('button',{name:'Save',exact:true}).click();await expect(page.locator('#status')).toHaveText('Configuration saved.');
+  expect(await page.evaluate(()=>window.__mock.storage.config)).toEqual(next);
+  const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Export JSON',exact:true}).click();
+  const stream=await (await downloaded).createReadStream();const chunks=[];for await (const chunk of stream) chunks.push(chunk);
+  expect(JSON.parse(Buffer.concat(chunks).toString('utf8'))).toEqual(next);
+});
 test('unsupported stored configuration stays intact and is recoverable through JSON',async({page})=>{
   await openOptions(page,{version:999});await expect(page.locator('#tab-json')).toHaveAttribute('aria-selected','true');await expect(page.locator('#status')).toContainText('has not been overwritten');expect(await page.evaluate(()=>window.__mock.writes)).toBe(0);
   await page.getByRole('tab',{name:'Layouts',exact:true}).click();await expect(page.locator('#errors')).toContainText('version 1');

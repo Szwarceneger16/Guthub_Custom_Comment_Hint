@@ -17,11 +17,13 @@ function reconcile() {
   pending = false;
   if (stopped) return;
   const repository = repositoryFromURL(location.href);
-  if (repository && repositoryKey(repository) !== rememberedRepository && !browser.extension?.inIncognitoContext) {
-    rememberedRepository = repositoryKey(repository);
+  if (!repository) rememberedRepository = undefined;
+  else if (repositoryKey(repository) !== rememberedRepository?.key && !browser.extension?.inIncognitoContext) {
+    const visit = { key:repositoryKey(repository) };
+    rememberedRepository = visit;
     browser.runtime.sendMessage({ type:'rememberRepository', url:location.href }).catch(() => {
-      // Retry after navigation; toolbar behavior is independent of the catalog.
-      rememberedRepository = undefined;
+      // Allow retries for this visit without invalidating a newer one.
+      if (rememberedRepository === visit) rememberedRepository = undefined;
     });
   }
   const conversation = conversationFromURL(location.href);
@@ -39,7 +41,8 @@ function reconcile() {
   if (binding) binding.host.dataset.theme = themeFor(document);
 }
 
-function schedule() {
+function schedule(event) {
+  if (event?.type === 'pageshow' && event.persisted) rememberedRepository = undefined;
   if (!pending && !stopped) { pending = true; queueMicrotask(reconcile); }
 }
 
